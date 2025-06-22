@@ -55,6 +55,8 @@ dependencies {
     // Room Database
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
+    implementation(libs.androidx.datastore.core.android)
+    implementation(libs.androidx.datastore.preferences.core.android)
     kapt("androidx.room:room-compiler:2.6.1")
     // Navigation Compose
     implementation("androidx.navigation:navigation-compose:2.7.7")
