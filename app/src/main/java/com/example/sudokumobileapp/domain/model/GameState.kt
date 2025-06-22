@@ -5,3 +5,4 @@ sealed class GameState {
     data class Won(val time: Long) : GameState()
     data class Failed(val wrongCells: List<Pair<Int, Int>>) : GameState()
 }
+
