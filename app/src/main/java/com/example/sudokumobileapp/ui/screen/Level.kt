@@ -1,5 +1,6 @@
 package com.example.sudokumobileapp.ui.screen
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,20 +31,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import com.example.sudokumobileapp.domain.repository.TimerLifecycleObserver
 import kotlinx.coroutines.delay
 
 @Composable
 fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: String) {
-    var difficulty by remember { mutableStateOf(level) }
-    var showDifficultyMenu by remember { mutableStateOf(false) }
-    var selectedCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    var showExitDialog by remember { mutableStateOf(false) }
+    var difficulty by remember { mutableStateOf(level) } // chế độ game
+
+    var selectedCell by remember { mutableStateOf<Pair<Int, Int>?>(null) } //gme
+
+    var showExitDialog by remember { mutableStateOf(false) } // hôp thoại dialog khi nhấn thoát ra
 
 
     var elapsedTime by remember { mutableStateOf(0L) } // Thời gian tính bằng giây
     var isTimerRunning by remember { mutableStateOf(true) }
 
+    var showPausedDialog by remember { mutableStateOf(false) }//hiện thị hộp toại khi nhấn tạm dừng
+
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     BackHandler(enabled = true) {
         showExitDialog = true
@@ -54,19 +62,56 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
             while (true) {
                 delay(1000L) // Cập nhật mỗi giây
                 elapsedTime++
+                Log.d("TIMER_DEBUG", "Elapsed time: $elapsedTime seconds")
             }
         }
     }
 
+    // Đăng ký lifecycle observer
+    DisposableEffect(lifecycleOwner) {
+        val observer = TimerLifecycleObserver(
+            onPause = {
+                isTimerRunning=false
+                     },
+        )
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+
     if (showExitDialog) {
+        isTimerRunning = false
         NotificationExit(
             onConfirm = {
                 // Xử lý khi xác nhận thoát
                 navController.popBackStack()
             },
-            onDismiss = { showExitDialog = false }
+            onDismiss = {
+                showExitDialog = false
+                isTimerRunning= true
+            }
         )
     }
+    // Hiển thị menu tạm dừng
+    if (showPausedDialog) {
+        PauseMenu(
+            onResume = {
+                showPausedDialog = false
+                isTimerRunning= true
+                       },
+            onRestart = {
+                // Xử lý chơi lại
+                showPausedDialog = false
+            },
+            onExit = {
+                navController.popBackStack() // Quay về màn hình trước
+            }
+        )
+    }
+
     // Tạo bảng Sudoku mẫu (0 đại diện cho ô trống)
     val board = remember(difficulty) {
         when (difficulty) {
@@ -94,7 +139,7 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
         // Chọn độ khó
         Box {
             Button(
-                onClick = { showDifficultyMenu = true },
+                onClick = { },
                 modifier = Modifier.padding(bottom = 16.dp)
 
             ) {
@@ -102,7 +147,10 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
             }
         }
         Button(
-            onClick = {},
+            onClick = {
+                showPausedDialog = true
+                isTimerRunning=false
+            },
             modifier = Modifier.padding(bottom = 16.dp)
 
         ) {
