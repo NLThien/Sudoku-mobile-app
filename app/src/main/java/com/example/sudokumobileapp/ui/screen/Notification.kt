@@ -50,9 +50,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.navigation.compose.rememberNavController
 
 @Composable
 fun NotificationExit( onConfirm: () -> Unit,
@@ -312,6 +314,23 @@ fun PauseMenuButton(
                 text = text,
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)
             )
+        }
+    }
+}
+
+@Preview(name = "Notification Exit Dialog", showBackground = true)
+@Composable
+fun NotificationExitPreview() {
+    MaterialTheme {
+        var showDialog by remember { mutableStateOf(true) }
+
+        if (showDialog) {
+            NotificationExit(
+                onConfirm = { showDialog = false },
+                onDismiss = { showDialog = false }
+            )
+        } else {
+            Text("Click to show dialog", modifier = Modifier.clickable { showDialog = true })
         }
     }
 }

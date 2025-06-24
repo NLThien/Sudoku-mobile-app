@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -29,15 +32,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.sudokumobileapp.domain.repository.TimerLifecycleObserver
 import kotlinx.coroutines.delay
 
 @Composable
 fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: String) {
+    var isDarkTheme by remember { mutableStateOf(false) }
+    val themeColors = if (isDarkTheme) darkColorScheme() else lightColorScheme()
+
+    MaterialTheme(
+        colorScheme = themeColors
+    ) {
     var difficulty by remember { mutableStateOf(level) } // chế độ game
 
     var selectedCell by remember { mutableStateOf<Pair<Int, Int>?>(null) } //gme
@@ -81,8 +92,7 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
         }
     }
 
-
-    if (showExitDialog) {
+        if (showExitDialog) {
         isTimerRunning = false
         NotificationExit(
             onConfirm = {
@@ -125,16 +135,28 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(if (isDarkTheme) Color(0xFF121212) else Color(0xFFFFFFFF))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Tiêu đề
         Text(
             text = "Sudoku",
-            style = MaterialTheme.typography.headlineLarge,
+            style = MaterialTheme.typography.headlineLarge.copy(
+                color = if (isDarkTheme) Color.White else Color.Black
+            ),
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
+
+        Button(
+            onClick = { isDarkTheme = !isDarkTheme },
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            Text(if (isDarkTheme) "Chuyển sang sáng" else "Chuyển sang tối")
+        }
+
 
         // Chọn độ khó
         Box {
@@ -163,8 +185,10 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
         SudokuBoard(
             board = board,
             selectedCell = selectedCell,
-            onCellSelected = { row, col -> selectedCell = row to col }
+            onCellSelected = { row, col -> selectedCell = row to col },
+            isDarkTheme = isDarkTheme
         )
+
 
         // Bàn phím số
         NumberPad(
@@ -184,7 +208,9 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
                         board[row][col] = 0
                     }
                 }
-            }
+            },
+            isDarkTheme = isDarkTheme
+
         )
         Row(
             modifier = Modifier
@@ -202,6 +228,7 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
             )
         }
     }
+    }
 }
 
 // Định dạng thời gian
@@ -215,11 +242,19 @@ fun formatTime(seconds: Long): String {
 fun SudokuBoard(
     board: Array<IntArray>,
     selectedCell: Pair<Int, Int>?,
-    onCellSelected: (Int, Int) -> Unit
+    onCellSelected: (Int, Int) -> Unit,
+    isDarkTheme: Boolean
 ) {
+    val cellBackgroundColor: (Int, Int, Boolean) -> Color = { row, col, isSelected ->
+        when {
+            isSelected -> if (isDarkTheme) Color.DarkGray else Color.LightGray
+            (row / 3 + col / 3) % 2 == 0 -> if (isDarkTheme) Color(0xFF2C2C2C) else Color(0xFFE8F5E9)
+            else -> if (isDarkTheme) Color(0xFF1E1E1E) else Color.White
+        }
+    }
     Column(
         modifier = Modifier
-            .border(2.dp, Color.Black)
+            .border(2.dp, if (isDarkTheme) Color.White else Color.Black)
     ) {
         for (row in 0 until 9) {
             Row {
@@ -231,21 +266,15 @@ fun SudokuBoard(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .border(1.dp, Color.Gray)
-                            .background(
-                                when {
-                                    isSelected -> Color.LightGray
-                                    row / 3 != (row + 1) / 3 && col / 3 != (col + 1) / 3 -> Color(0xFFE8F5E9)
-                                    else -> Color.White
-                                }
-                            )
+                            .border(1.dp, if (isDarkTheme) Color.Gray else Color.Gray)
+                            .background(cellBackgroundColor(row, col, isSelected))
                             .clickable { onCellSelected(row, col) },
                         contentAlignment = Alignment.Center
                     ) {
                         if (cellValue != 0) {
                             Text(
                                 text = cellValue.toString(),
-                                color = if (isEditable) Color.Blue else Color.Black,
+                                color = if (isDarkTheme) Color.White else if (isEditable) Color.Blue else Color.Black,
                                 fontSize = 20.sp,
                                 fontWeight = if (isEditable) FontWeight.Normal else FontWeight.Bold
                             )
@@ -261,7 +290,8 @@ fun SudokuBoard(
 fun NumberPad(
     modifier: Modifier = Modifier,
     onNumberSelected: (Int) -> Unit,
-    onClearSelected: () -> Unit
+    onClearSelected: () -> Unit,
+    isDarkTheme: Boolean
 ) {
     Column(
         modifier = modifier,
@@ -273,7 +303,7 @@ fun NumberPad(
             modifier = Modifier.padding(bottom = 8.dp)
         ) {
             for (number in 1..3) {
-                NumberButton(number = number, onClick = { onNumberSelected(number) })
+                NumberButton(number = number, onClick = { onNumberSelected(number) }, isDarkTheme = isDarkTheme)
             }
         }
         // Hàng số 4-6
@@ -282,7 +312,7 @@ fun NumberPad(
             modifier = Modifier.padding(bottom = 8.dp)
         ) {
             for (number in 4..6) {
-                NumberButton(number = number, onClick = { onNumberSelected(number) })
+                NumberButton(number = number, onClick = { onNumberSelected(number) }, isDarkTheme = isDarkTheme)
             }
         }
         // Hàng số 7-9
@@ -291,7 +321,7 @@ fun NumberPad(
             modifier = Modifier.padding(bottom = 8.dp)
         ) {
             for (number in 7..9) {
-                NumberButton(number = number, onClick = { onNumberSelected(number) })
+                NumberButton(number = number, onClick = { onNumberSelected(number) }, isDarkTheme = isDarkTheme)
             }
         }
         // Nút xóa
@@ -299,29 +329,36 @@ fun NumberPad(
             onClick = onClearSelected,
             modifier = Modifier.width(100.dp)
         ) {
-            Text("Xóa")
+            Text(
+                text = "Xóa",
+            )
         }
-
     }
 }
 
 @Composable
-fun NumberButton(number: Int, onClick: () -> Unit) {
+fun NumberButton(number: Int, onClick: () -> Unit, isDarkTheme: Boolean) {
+    val backgroundColor = if (isDarkTheme) Color(0xFF2C2C2C) else Color.White
+    val textColor = if (isDarkTheme) Color.White else Color.Black
+    val borderColor = if (isDarkTheme) Color.LightGray else Color.Gray
+
     Box(
         modifier = Modifier
             .size(48.dp)
-            .background(Color.White)
-            .border(1.dp, Color.Gray)
+            .background(backgroundColor)
+            .border(1.dp, borderColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = number.toString(),
             fontSize = 24.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = textColor
         )
     }
 }
+
 
 // Hàm kiểm tra ô có thể chỉnh sửa không (ô trống ban đầu)
 private fun isEditableCell(board: Array<IntArray>, row: Int, col: Int): Boolean {
@@ -375,3 +412,17 @@ private fun isValidPlacement(board: Array<IntArray>, row: Int, col: Int, num: In
     return true
 }
 
+@Preview(showBackground = true)
+@Composable
+fun SudokuGameScreenPreview() {
+    // Tạo NavController giả lập cho preview
+    val navController = rememberNavController()
+
+    MaterialTheme {
+        SudokuGameScreen(
+            navController = navController,
+            modifier = Modifier,
+            level = "Dễ"
+        )
+    }
+}
