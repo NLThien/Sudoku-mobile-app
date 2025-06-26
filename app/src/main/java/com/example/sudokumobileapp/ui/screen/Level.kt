@@ -155,31 +155,40 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (isDarkTheme) Color(0xFF121212) else Color(0xFFFFFFFF))
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Tiêu đề
-        Text(
-            text = "Sudoku",
-            style = MaterialTheme.typography.headlineLarge.copy(
-                color = if (isDarkTheme) Color.White else Color.Black
-            ),
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
 
-        Switch(
-            checked = isDarkTheme,
-            onCheckedChange = {
-                isDarkTheme = it
-                scope.launch {
-                    context.dataStore.edit { settings ->
-                        settings[DARK_THEME_KEY] = it
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = "Sudoku",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    color = if (isDarkTheme) Color.White else Color.Black,
+                    fontWeight = FontWeight.Bold
+                ),
+                modifier = Modifier.align(Alignment.Center)
+            )
+
+            Switch(
+                checked = isDarkTheme,
+                onCheckedChange = {
+                    isDarkTheme = it
+                    scope.launch {
+                        context.dataStore.edit { settings ->
+                            settings[DARK_THEME_KEY] = it
+                        }
                     }
-                }
-            }
-        )
+                },
+                modifier = Modifier.align(Alignment.CenterEnd)
+            )
+        }
+
+
 
         // Chọn độ khó
         Box {
@@ -246,7 +255,7 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
                 text = formatTime(elapsedTime),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
-
+                    color = if (isDarkTheme) Color.White else Color.Black,
                 )
             )
         }
@@ -433,4 +442,14 @@ private fun isValidPlacement(board: Array<IntArray>, row: Int, col: Int, num: In
     }
 
     return true
+}
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun PreviewSudokuGameScreen() {
+    val navController = rememberNavController()
+    SudokuGameScreen(
+        navController = navController,
+        modifier = Modifier,
+        level = "Dễ"
+    )
 }
