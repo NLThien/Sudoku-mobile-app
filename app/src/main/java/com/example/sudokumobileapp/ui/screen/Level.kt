@@ -1,5 +1,6 @@
 package com.example.sudokumobileapp.ui.screen
 
+import android.content.Context
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -18,43 +19,55 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.sudokumobileapp.domain.repository.TimerLifecycleObserver
+import com.example.sudokumobileapp.ui.theme.SudokuMobileAppTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+
+private val Context.dataStore by preferencesDataStore("settings")
+private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
 
 @Composable
 fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: String) {
-    var isDarkTheme by remember { mutableStateOf(false) }
-    val themeColors = if (isDarkTheme) darkColorScheme() else lightColorScheme()
+    val context = LocalContext.current
+    var isDarkTheme by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    MaterialTheme(
-        colorScheme = themeColors
-    ) {
     var difficulty by remember { mutableStateOf(level) } // chế độ game
 
     var selectedCell by remember { mutableStateOf<Pair<Int, Int>?>(null) } //gme
 
     var showExitDialog by remember { mutableStateOf(false) } // hôp thoại dialog khi nhấn thoát ra
-
 
     var elapsedTime by remember { mutableStateOf(0L) } // Thời gian tính bằng giây
     var isTimerRunning by remember { mutableStateOf(true) }
@@ -65,6 +78,12 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
 
     BackHandler(enabled = true) {
         showExitDialog = true
+    }
+
+    //lay theme tu datastore
+    LaunchedEffect(Unit) {
+        val preferences = context.dataStore.data.first()
+        isDarkTheme = preferences[DARK_THEME_KEY] ?: false
     }
 
     // Bộ đếm thời gian
@@ -132,6 +151,7 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
         }
     }
 
+    SudokuMobileAppTheme(darkTheme = isDarkTheme) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -149,14 +169,17 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-
-        Button(
-            onClick = { isDarkTheme = !isDarkTheme },
-            modifier = Modifier.padding(bottom = 16.dp)
-        ) {
-            Text(if (isDarkTheme) "Chuyển sang sáng" else "Chuyển sang tối")
-        }
-
+        Switch(
+            checked = isDarkTheme,
+            onCheckedChange = {
+                isDarkTheme = it
+                scope.launch {
+                    context.dataStore.edit { settings ->
+                        settings[DARK_THEME_KEY] = it
+                    }
+                }
+            }
+        )
 
         // Chọn độ khó
         Box {
@@ -266,7 +289,7 @@ fun SudokuBoard(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .border(1.dp, if (isDarkTheme) Color.Gray else Color.Gray)
+                            .border(1.dp, Color.Gray)
                             .background(cellBackgroundColor(row, col, isSelected))
                             .clickable { onCellSelected(row, col) },
                         contentAlignment = Alignment.Center
@@ -410,19 +433,4 @@ private fun isValidPlacement(board: Array<IntArray>, row: Int, col: Int, num: In
     }
 
     return true
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SudokuGameScreenPreview() {
-    // Tạo NavController giả lập cho preview
-    val navController = rememberNavController()
-
-    MaterialTheme {
-        SudokuGameScreen(
-            navController = navController,
-            modifier = Modifier,
-            level = "Dễ"
-        )
-    }
 }
