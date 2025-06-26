@@ -7,6 +7,6 @@ import kotlinx.coroutines.flow.Flow
 interface GameRepository {
     suspend fun generateNewBoard(difficulty: Difficulty): SudokuBoard
     suspend fun saveGame(board: SudokuBoard)
-    fun loadSavedGame(): Flow<SudokuBoard?>
+    fun loadGame(): Flow<SudokuBoard?>
     suspend fun validateBoard(board: SudokuBoard): Boolean
 }
