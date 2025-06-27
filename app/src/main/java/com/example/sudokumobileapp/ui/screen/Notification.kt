@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -34,6 +35,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,6 +57,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.rounded.Stars
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+
 
 @Composable
 fun NotificationExit( onConfirm: () -> Unit,
@@ -314,6 +322,91 @@ fun PauseMenuButton(
                 text = text,
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)
             )
+        }
+    }
+}
+
+@Composable
+fun SudokuWinDialog(
+    time: Long,
+    onRestart: () -> Unit,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(12.dp)
+    var showDialog by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (showDialog) 1f else 0.9f,
+        animationSpec = spring(dampingRatio = 0.6f),
+        label = "dialog_scale"
+    )
+
+    LaunchedEffect(Unit) { showDialog = true }
+
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+    ) {
+        Surface(
+            modifier = modifier
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .shadow(16.dp, shape),
+            shape = shape,
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Icon chiến thắng
+                Icon(
+                    imageVector = Icons.Rounded.Stars,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Tiêu đề
+                Text(
+                    text = "Hoàn thành !",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Thời gian
+                Text(
+                    text = "Thời gian: ${formatTime(time)}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Nút hành động
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onExit,
+                        modifier = Modifier.weight(1f),
+                        shape = shape
+                    ) {
+                        Text("Thoát")
+                    }
+
+                    Button(
+                        onClick = onRestart,
+                        modifier = Modifier.weight(1f),
+                        shape = shape
+                    ) {
+                        Text("Chơi lại")
+                    }
+                }
+            }
         }
     }
 }

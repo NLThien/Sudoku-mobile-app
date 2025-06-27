@@ -2,6 +2,7 @@ package com.example.sudokumobileapp.ui.screen
 
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,7 +49,12 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.sudokumobileapp.domain.model.Difficulty
+import com.example.sudokumobileapp.domain.model.GameState
 import com.example.sudokumobileapp.domain.repository.TimerLifecycleObserver
+import com.example.sudokumobileapp.domain.usecases.generator.BoardGenerator
+import com.example.sudokumobileapp.domain.usecases.solver.SudokuSolver
+import com.example.sudokumobileapp.domain.usecases.validator.BoardValidator
 import com.example.sudokumobileapp.ui.theme.SudokuMobileAppTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -75,12 +81,15 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
     var showPausedDialog by remember { mutableStateOf(false) }//hiện thị hộp toại khi nhấn tạm dừng
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    var showWinDialog by remember { mutableStateOf(false) } //hiện hộp thoại hoàn thành
+    val validator = remember { BoardValidator() } //kiểm tra xem đã full số chưa
+    val solver = remember { SudokuSolver() } //lời giải
 
     BackHandler(enabled = true) {
         showExitDialog = true
     }
 
-    //lay theme tu datastore
+    //theme
     LaunchedEffect(Unit) {
         val preferences = context.dataStore.data.first()
         isDarkTheme = preferences[DARK_THEME_KEY] ?: false
@@ -141,14 +150,45 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
         )
     }
 
-    // Tạo bảng Sudoku mẫu (0 đại diện cho ô trống)
-    val board = remember(difficulty) {
-        when (difficulty) {
-            "Dễ" -> generateSudokuBoard(30) // Ít ô trống
-            "Trung bình" -> generateSudokuBoard(45) // Trung bình ô trống
-            "Khó" -> generateSudokuBoard(60) // Nhiều ô trống
-            else -> generateSudokuBoard(30)
-        }
+
+//    // Tạo bảng Sudoku mẫu (0 đại diện cho ô trống)
+//    var board = remember(difficulty) {
+//        when (difficulty) {
+//            "Dễ" -> generateSudokuBoard(30) // Ít ô trống
+//            "Trung bình" -> generateSudokuBoard(45) // Trung bình ô trống
+//            "Khó" -> generateSudokuBoard(60) // Nhiều ô trống
+//            else -> generateSudokuBoard(30)
+//        }
+//    }
+
+    val generator = remember { BoardGenerator() }
+    val diffEnum = when (level) {
+        "Dễ"         -> Difficulty.EASY
+        "Trung bình" -> Difficulty.MEDIUM
+        "Khó"        -> Difficulty.HARD
+        else         -> Difficulty.EASY
+    }
+
+    var board by remember(diffEnum) {
+        mutableStateOf(generator.generate(diffEnum).cells)
+    }
+
+
+    // Khi showWinDialog = true, gọi composable dialog
+    if (showWinDialog) {
+        SudokuWinDialog(
+            time = elapsedTime,
+            onRestart = {
+                // reset board và timer
+                board = generator.generate(diffEnum).cells
+                elapsedTime = 0L
+                isTimerRunning = true
+                showWinDialog = false
+            },
+            onExit = {
+                navController.popBackStack()
+            }
+        )
     }
 
     SudokuMobileAppTheme(darkTheme = isDarkTheme) {
@@ -173,7 +213,14 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
                 ),
                 modifier = Modifier.align(Alignment.Center)
             )
-
+            Text(
+                text = formatTime(elapsedTime),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    color = if (isDarkTheme) Color.White else Color.Black,
+                    fontWeight = FontWeight.Bold
+                ),
+                modifier = Modifier.align(Alignment.TopStart)
+            )
             Switch(
                 checked = isDarkTheme,
                 onCheckedChange = {
@@ -200,19 +247,65 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
                 Text(text = "Độ khó: $difficulty")
             }
         }
-        Button(
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp), // Khoảng cách với các thành phần khác
+            horizontalArrangement = Arrangement.Center, // Căn giữa theo chiều ngang
+        ) {
+            Button(
             onClick = {
                 showPausedDialog = true
                 isTimerRunning=false
             },
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 16.dp, end = 8.dp)
 
         ) {
             Text(
                 text = "Tạm dừng"
             )
         }
+            Button(
+            onClick = {
+                selectedCell?.let { (r, c) ->
+                    if (board[r][c] == 0) {
+                        // Tạo bản sao của bảng hiện tại
+                        val boardCopy = board.map { it.clone() }.toTypedArray()
 
+                        // Giải bảng để lấy lời giải hoàn chỉnh
+                        val solution = solver.solve(boardCopy)
+
+                        if (solution != null) {
+                            // Lấy số từ lời giải tại vị trí đã chọn
+                            val hintNumber = solution[r][c]
+
+                            // Cập nhật bảng với số gợi ý
+                            val newBoard = board.map { it.clone() }.toTypedArray()
+                            newBoard[r][c] = hintNumber
+                            board = newBoard
+
+                            // Kiểm tra thắng
+                            if (validator.isBoardValid(board)) {
+                                isTimerRunning = false
+                                showWinDialog = true
+                            }
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Không tìm được lời giải cho bảng này",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            },
+            enabled = selectedCell != null && board[selectedCell!!.first][selectedCell!!.second] == 0,
+            modifier = Modifier.width(120.dp)
+        ) {
+            Text("Gợi ý")
+        }
+        }
         // Bảng Sudoku
         SudokuBoard(
             board = board,
@@ -230,6 +323,11 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
                     // Chỉ cho phép điền số vào ô trống (giá trị 0)
                     if (board[row][col] == 0) {
                         board[row][col] = number
+                        // Kiểm tra thắng ngay
+                        if (validator.isBoardValid(board)) {
+                            isTimerRunning = false
+                            showWinDialog = true
+                        }
                     }
                 }
             },
@@ -244,24 +342,10 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
             isDarkTheme = isDarkTheme
 
         )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = formatTime(elapsedTime),
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) Color.White else Color.Black,
-                )
-            )
-        }
     }
     }
 }
+
 
 // Định dạng thời gian
 fun formatTime(seconds: Long): String {
@@ -399,50 +483,50 @@ private fun isEditableCell(board: Array<IntArray>, row: Int, col: Int): Boolean 
     return board[row][col] == 0
 }
 
-// Hàm tạo bảng Sudoku (đơn giản)
-private fun generateSudokuBoard(emptyCells: Int): Array<IntArray> {
-    // Trong thực tế, bạn cần một thuật toán tạo Sudoku hợp lệ
-    // Đây chỉ là ví dụ đơn giản
+//// Hàm tạo bảng Sudoku (đơn giản)
+//private fun generateSudokuBoard(emptyCells: Int): Array<IntArray> {
+//    // Trong thực tế, bạn cần một thuật toán tạo Sudoku hợp lệ
+//    // Đây chỉ là ví dụ đơn giản
+//
+//    val board = Array(9) { IntArray(9) { 0 } }
+//
+//    // Điền một số ô ngẫu nhiên
+//    repeat(81 - emptyCells) {
+//        val row = (0 until 9).random()
+//        val col = (0 until 9).random()
+//        val num = (1..9).random()
+//
+//        if (board[row][col] == 0 && isValidPlacement(board, row, col, num)) {
+//            board[row][col] = num
+//        }
+//    }
+//
+//    return board
+//}
 
-    val board = Array(9) { IntArray(9) { 0 } }
-
-    // Điền một số ô ngẫu nhiên
-    repeat(81 - emptyCells) {
-        val row = (0 until 9).random()
-        val col = (0 until 9).random()
-        val num = (1..9).random()
-
-        if (board[row][col] == 0 && isValidPlacement(board, row, col, num)) {
-            board[row][col] = num
-        }
-    }
-
-    return board
-}
-
-// Kiểm tra vị trí đặt số có hợp lệ không
-private fun isValidPlacement(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
-    // Kiểm tra hàng
-    for (i in 0 until 9) {
-        if (board[row][i] == num) return false
-    }
-
-    // Kiểm tra cột
-    for (i in 0 until 9) {
-        if (board[i][col] == num) return false
-    }
-
-    // Kiểm tra ô 3x3
-    val boxRow = row - row % 3
-    val boxCol = col - col % 3
-    for (i in 0 until 3) {
-        for (j in 0 until 3) {
-            if (board[boxRow + i][boxCol + j] == num) return false
-        }
-    }
-
-    return true
-}
+//// Kiểm tra vị trí đặt số có hợp lệ không
+//private fun isValidPlacement(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
+//    // Kiểm tra hàng
+//    for (i in 0 until 9) {
+//        if (board[row][i] == num) return false
+//    }
+//
+//    // Kiểm tra cột
+//    for (i in 0 until 9) {
+//        if (board[i][col] == num) return false
+//    }
+//
+//    // Kiểm tra ô 3x3
+//    val boxRow = row - row % 3
+//    val boxCol = col - col % 3
+//    for (i in 0 until 3) {
+//        for (j in 0 until 3) {
+//            if (board[boxRow + i][boxCol + j] == num) return false
+//        }
+//    }
+//
+//    return true
+//}
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PreviewSudokuGameScreen() {

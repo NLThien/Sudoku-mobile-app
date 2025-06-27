@@ -57,6 +57,7 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     implementation(libs.androidx.datastore.core.android)
     implementation(libs.androidx.datastore.preferences.core.android)
+    implementation(libs.androidx.foundation.android)
     kapt("androidx.room:room-compiler:2.6.1")
     implementation ("androidx.datastore:datastore-preferences:1.0.0")
 
