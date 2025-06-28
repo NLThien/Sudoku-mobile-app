@@ -6,6 +6,7 @@ import androidx.lifecycle.OnLifecycleEvent
 
 class TimerLifecycleObserver(
     private val onPause: () -> Unit,
+    private val onResume:()-> Unit
 
 ) : LifecycleObserver {
 
@@ -14,5 +15,8 @@ class TimerLifecycleObserver(
         onPause()
     }
 
-
+    @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    fun resume(){
+        onResume()
+    }
 }
