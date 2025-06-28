@@ -150,17 +150,6 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
         )
     }
 
-
-//    // Tạo bảng Sudoku mẫu (0 đại diện cho ô trống)
-//    var board = remember(difficulty) {
-//        when (difficulty) {
-//            "Dễ" -> generateSudokuBoard(30) // Ít ô trống
-//            "Trung bình" -> generateSudokuBoard(45) // Trung bình ô trống
-//            "Khó" -> generateSudokuBoard(60) // Nhiều ô trống
-//            else -> generateSudokuBoard(30)
-//        }
-//    }
-
     val generator = remember { BoardGenerator() }
     val diffEnum = when (level) {
         "Dễ"         -> Difficulty.EASY
@@ -172,7 +161,12 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
     var board by remember(diffEnum) {
         mutableStateOf(generator.generate(diffEnum).cells)
     }
+//lưu bảng các ô gốc
+    val initialBoard = board.map { it.clone() }.toTypedArray()
 
+    val solution by remember(board) {
+        mutableStateOf(solver.solve(board.map { it.clone() }.toTypedArray()) ?: Array(9) { IntArray(9) })
+    }
 
     // Khi showWinDialog = true, gọi composable dialog
     if (showWinDialog) {
@@ -285,7 +279,7 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
                             newBoard[r][c] = hintNumber
                             board = newBoard
 
-                            // Kiểm tra thắng
+                            // Kiểm tra hoàn thành
                             if (validator.isBoardValid(board)) {
                                 isTimerRunning = false
                                 showWinDialog = true
@@ -311,7 +305,8 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
             board = board,
             selectedCell = selectedCell,
             onCellSelected = { row, col -> selectedCell = row to col },
-            isDarkTheme = isDarkTheme
+            isDarkTheme = isDarkTheme,
+            solution = solution
         )
 
 
@@ -334,7 +329,7 @@ fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: Stri
             onClearSelected = {
                 selectedCell?.let { (row, col) ->
                     // Chỉ cho phép xóa ô không phải là ô cố định
-                    if (isEditableCell(board, row, col)) {
+                    if (isEditableCell(initialBoard, row, col)) {
                         board[row][col] = 0
                     }
                 }
@@ -359,7 +354,8 @@ fun SudokuBoard(
     board: Array<IntArray>,
     selectedCell: Pair<Int, Int>?,
     onCellSelected: (Int, Int) -> Unit,
-    isDarkTheme: Boolean
+    isDarkTheme: Boolean,
+    solution: Array<IntArray>
 ) {
     val cellBackgroundColor: (Int, Int, Boolean) -> Color = { row, col, isSelected ->
         when {
@@ -378,6 +374,8 @@ fun SudokuBoard(
                     val cellValue = board[row][col]
                     val isSelected = selectedCell?.let { it.first == row && it.second == col } ?: false
                     val isEditable = isEditableCell(board, row, col)
+                    val isCorrect = solution[row][col] == cellValue
+
 
                     Box(
                         modifier = Modifier
@@ -390,7 +388,11 @@ fun SudokuBoard(
                         if (cellValue != 0) {
                             Text(
                                 text = cellValue.toString(),
-                                color = if (isDarkTheme) Color.White else if (isEditable) Color.Blue else Color.Black,
+                                color = when {
+                                    solution[row][col] == 0 -> Color.Black // nếu chưa có lời giải
+                                    isCorrect -> if (isDarkTheme) Color.White else Color.Black
+                                    else -> Color.Red // sai thì đỏ
+                                },
                                 fontSize = 20.sp,
                                 fontWeight = if (isEditable) FontWeight.Normal else FontWeight.Bold
                             )
@@ -407,7 +409,7 @@ fun NumberPad(
     modifier: Modifier = Modifier,
     onNumberSelected: (Int) -> Unit,
     onClearSelected: () -> Unit,
-    isDarkTheme: Boolean
+    isDarkTheme: Boolean,
 ) {
     Column(
         modifier = modifier,
@@ -477,56 +479,10 @@ fun NumberButton(number: Int, onClick: () -> Unit, isDarkTheme: Boolean) {
 
 
 // Hàm kiểm tra ô có thể chỉnh sửa không (ô trống ban đầu)
-private fun isEditableCell(board: Array<IntArray>, row: Int, col: Int): Boolean {
-    // Trong thực tế, cần kiểm tra xem ô này có phải là ô gốc không
-    // Ở đây đơn giản coi tất cả ô 0 là có thể chỉnh sửa
-    return board[row][col] == 0
+private fun isEditableCell(initialBoard: Array<IntArray>, row: Int, col: Int): Boolean {
+    return initialBoard[row][col] == 0
 }
 
-//// Hàm tạo bảng Sudoku (đơn giản)
-//private fun generateSudokuBoard(emptyCells: Int): Array<IntArray> {
-//    // Trong thực tế, bạn cần một thuật toán tạo Sudoku hợp lệ
-//    // Đây chỉ là ví dụ đơn giản
-//
-//    val board = Array(9) { IntArray(9) { 0 } }
-//
-//    // Điền một số ô ngẫu nhiên
-//    repeat(81 - emptyCells) {
-//        val row = (0 until 9).random()
-//        val col = (0 until 9).random()
-//        val num = (1..9).random()
-//
-//        if (board[row][col] == 0 && isValidPlacement(board, row, col, num)) {
-//            board[row][col] = num
-//        }
-//    }
-//
-//    return board
-//}
-
-//// Kiểm tra vị trí đặt số có hợp lệ không
-//private fun isValidPlacement(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
-//    // Kiểm tra hàng
-//    for (i in 0 until 9) {
-//        if (board[row][i] == num) return false
-//    }
-//
-//    // Kiểm tra cột
-//    for (i in 0 until 9) {
-//        if (board[i][col] == num) return false
-//    }
-//
-//    // Kiểm tra ô 3x3
-//    val boxRow = row - row % 3
-//    val boxCol = col - col % 3
-//    for (i in 0 until 3) {
-//        for (j in 0 until 3) {
-//            if (board[boxRow + i][boxCol + j] == num) return false
-//        }
-//    }
-//
-//    return true
-//}
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PreviewSudokuGameScreen() {
