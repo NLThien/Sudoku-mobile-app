@@ -373,10 +373,7 @@ fun SudokuBoard(
                 for (col in 0 until 9) {
                     val cellValue = board[row][col]
                     val isSelected = selectedCell?.let { it.first == row && it.second == col } ?: false
-                    val isEditable = isEditableCell(board, row, col)
                     val isCorrect = solution[row][col] == cellValue
-
-
                     Box(
                         modifier = Modifier
                             .size(36.dp)
@@ -394,7 +391,7 @@ fun SudokuBoard(
                                     else -> Color.Red // sai thì đỏ
                                 },
                                 fontSize = 20.sp,
-                                fontWeight = if (isEditable) FontWeight.Normal else FontWeight.Bold
+                                fontWeight =  FontWeight.Bold
                             )
                         }
                     }
