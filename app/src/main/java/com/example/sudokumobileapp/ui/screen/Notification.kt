@@ -8,40 +8,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.Stars
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -49,33 +25,30 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.navigation.compose.rememberNavController
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.rounded.Stars
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import com.example.sudokumobileapp.R
 
 
 @Composable
-fun NotificationExit( onConfirm: () -> Unit,
-                      onDismiss: () -> Unit,
-                      modifier: Modifier = Modifier
+fun NotificationExit(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var animationPlayed by remember { mutableStateOf(false) }
-    val translateY = animateFloatAsState(
+    val translateY by animateFloatAsState(
         targetValue = if (animationPlayed) 0f else 100f,
         animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
         label = "dialog_animation"
     )
 
+    LaunchedEffect(Unit) { animationPlayed = true }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -87,17 +60,13 @@ fun NotificationExit( onConfirm: () -> Unit,
         Box(
             modifier = Modifier
                 .graphicsLayer {
-                    translationY = translateY.value
-                    alpha = translateY.value / 100f + 0.3f
+                    translationY = translateY
+                    alpha = translateY / 100f + 0.3f
                 }
                 .shadow(24.dp, RoundedCornerShape(20.dp))
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF9C27B0),
-                            Color(0xFF6A1B9A),
-
-                        )
+                        colors = listOf(Color(0xFF9C27B0), Color(0xFF6A1B9A))
                     ),
                     shape = RoundedCornerShape(20.dp)
                 )
@@ -107,19 +76,17 @@ fun NotificationExit( onConfirm: () -> Unit,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = modifier.width(280.dp)
             ) {
-                // Icon cảnh báo
                 Icon(
                     Icons.Default.Close,
                     contentDescription = null,
                     tint = Color(0xFFFFEB3B),
-                    modifier = Modifier.run { size(64.dp) }
+                    modifier = Modifier.size(64.dp)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Tiêu đề
                 Text(
-                    text = "Ôi không!",
+                    text = stringResource(R.string.oh_no),
                     style = MaterialTheme.typography.headlineSmall.copy(
                         color = Color.White,
                         fontWeight = FontWeight.Bold
@@ -128,9 +95,8 @@ fun NotificationExit( onConfirm: () -> Unit,
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Nội dung
                 Text(
-                    text = "Bạn sắp thoát trò chơi\nTiến trình chưa lưu sẽ bị mất!",
+                    text = stringResource(R.string.cancel_not_save),
                     style = MaterialTheme.typography.bodyLarge.copy(
                         color = Color.White.copy(alpha = 0.9f)
                     ),
@@ -139,12 +105,10 @@ fun NotificationExit( onConfirm: () -> Unit,
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Hai nút hành động
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Nút huỷ
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
@@ -152,12 +116,11 @@ fun NotificationExit( onConfirm: () -> Unit,
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = "Ở lại",
+                            text = stringResource(R.string.cancel),
                             color = Color.White
                         )
                     }
 
-                    // Nút thoát
                     Button(
                         onClick = onConfirm,
                         modifier = Modifier.weight(1f),
@@ -167,13 +130,14 @@ fun NotificationExit( onConfirm: () -> Unit,
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Thoát game")
+                        Text(stringResource(R.string.exit_game))
                     }
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun PauseMenu(
@@ -194,9 +158,7 @@ fun PauseMenu(
         label = "scale_animation"
     )
 
-    LaunchedEffect(Unit) {
-        visible = true
-    }
+    LaunchedEffect(Unit) { visible = true }
 
     Box(
         modifier = Modifier
@@ -205,16 +167,13 @@ fun PauseMenu(
             .clickable(enabled = visible) { onResume() },
         contentAlignment = Alignment.Center
     ) {
-        Dialog(
-            onDismissRequest = onResume
-        ) {
+        Dialog(onDismissRequest = onResume) {
             Surface(
                 modifier = modifier
                     .width(300.dp)
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
-//                    Alpha = alpha
                     },
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface,
@@ -224,9 +183,8 @@ fun PauseMenu(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Tiêu đề
                     Text(
-                        text = "TẠM DỪNG",
+                        text = stringResource(id = R.string.pause),
                         style = MaterialTheme.typography.headlineMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -236,9 +194,8 @@ fun PauseMenu(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Nút tiếp tục
                     PauseMenuButton(
-                        text = "Tiếp tục",
+                        text = stringResource(id = R.string.resume),
                         icon = Icons.Default.PlayArrow,
                         onClick = onResume,
                         modifier = Modifier.fillMaxWidth()
@@ -246,9 +203,8 @@ fun PauseMenu(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Nút chơi lại
                     PauseMenuButton(
-                        text = "Chơi lại",
+                        text = stringResource(id = R.string.restart),
                         icon = Icons.Default.Refresh,
                         onClick = onRestart,
                         modifier = Modifier.fillMaxWidth(),
@@ -257,10 +213,9 @@ fun PauseMenu(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Nút thoát
                     PauseMenuButton(
-                        text = "Thoát game",
-                        icon = Icons.Default.ExitToApp,
+                        text = stringResource(id = R.string.exit_game),
+                        icon = Icons.AutoMirrored.Filled.ExitToApp,
                         onClick = onExit,
                         modifier = Modifier.fillMaxWidth(),
                         backgroundColor = MaterialTheme.colorScheme.errorContainer
@@ -270,6 +225,7 @@ fun PauseMenu(
         }
     }
 }
+
 
 @Composable
 fun PauseMenuButton(
@@ -301,8 +257,7 @@ fun PauseMenuButton(
                 interactionSource.interactions.collect {
                     when (it) {
                         is PressInteraction.Press -> isPressed = true
-                        is PressInteraction.Release -> isPressed = false
-                        is PressInteraction.Cancel -> isPressed = false
+                        is PressInteraction.Release, is PressInteraction.Cancel -> isPressed = false
                     }
                 }
             }
@@ -325,6 +280,7 @@ fun PauseMenuButton(
         }
     }
 }
+
 
 @Composable
 fun SudokuWinDialog(
@@ -358,7 +314,6 @@ fun SudokuWinDialog(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Icon chiến thắng
                 Icon(
                     imageVector = Icons.Rounded.Stars,
                     contentDescription = null,
@@ -368,24 +323,21 @@ fun SudokuWinDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Tiêu đề
                 Text(
-                    text = "Hoàn thành !",
+                    text = stringResource(R.string.game_completed),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Thời gian
                 Text(
-                    text = "Thời gian: ${formatTime(time)}",
+                    text = "${stringResource(R.string.time_up)} ${formatTime(time)}",
                     style = MaterialTheme.typography.bodyLarge
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Nút hành động
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -395,7 +347,7 @@ fun SudokuWinDialog(
                         modifier = Modifier.weight(1f),
                         shape = shape
                     ) {
-                        Text("Thoát")
+                        Text(stringResource(id = R.string.exit))
                     }
 
                     Button(
@@ -403,27 +355,10 @@ fun SudokuWinDialog(
                         modifier = Modifier.weight(1f),
                         shape = shape
                     ) {
-                        Text("Chơi lại")
+                        Text(stringResource(id = R.string.restart))
                     }
                 }
             }
-        }
-    }
-}
-
-@Preview(name = "Notification Exit Dialog", showBackground = true)
-@Composable
-fun NotificationExitPreview() {
-    MaterialTheme {
-        var showDialog by remember { mutableStateOf(true) }
-
-        if (showDialog) {
-            NotificationExit(
-                onConfirm = { showDialog = false },
-                onDismiss = { showDialog = false }
-            )
-        } else {
-            Text("Click to show dialog", modifier = Modifier.clickable { showDialog = true })
         }
     }
 }

@@ -11,141 +11,104 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SentimentNeutral
-import androidx.compose.material.icons.filled.SentimentVeryDissatisfied
-import androidx.compose.material.icons.filled.SentimentVerySatisfied
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import com.example.sudokumobileapp.ui.screen.SudokuGameScreen
-import com.example.sudokumobileapp.ui.theme.SudokuMobileAppTheme
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
-import androidx.navigation.NavHostController
-import androidx.navigation.NavHost
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.sudokumobileapp.ui.screen.SudokuGameScreen
+import com.example.sudokumobileapp.ui.theme.SudokuMobileAppTheme
+import com.example.sudokumobileapp.ui.screen.SudokuChallengeGameScreen
+import com.example.sudokumobileapp.data.repository.SoundManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SoundManager.init(this)
         enableEdgeToEdge()
         setContent {
             SudokuMobileAppTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    // Gọi SudokuApp và truyền Modifier với padding
                     SudokuApp(Modifier.padding(innerPadding))
+                }
+            }
+        }
+    }
+    override fun onDestroy() {
+        super.onDestroy()
+        SoundManager.release()
+    }
+}
+
+
+@Composable
+fun SudokuApp(modifier: Modifier = Modifier) {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = "home",
+        modifier = modifier
+    ) {
+        composable("home") {
+            HomeScreen(navController = navController, modifier = modifier)
+        }
+
+        composable("sudokuScreen/{mode}/{level}") { backStackEntry ->
+            val mode = backStackEntry.arguments?.getString("mode") ?: "free"
+            val level = backStackEntry.arguments?.getString("level") ?: stringResource(R.string.difficulty_easy)
+
+            when (mode) {
+                "free" -> {
+                    SudokuGameScreen(
+                        navController = navController,
+                        modifier = modifier,
+                        level = level,
+                        mode = mode
+                    )
+                }
+                "challenge" -> {
+                    SudokuChallengeGameScreen(
+                        navController = navController,
+                        modifier = modifier,
+                        level = level,
+                        mode = mode
+                    )
+                }
+                else -> {
+                    // Nếu có mode sai, mặc định về free
+                    SudokuGameScreen(
+                        navController = navController,
+                        modifier = modifier,
+                        level = level,
+                        mode = "free"
+                    )
                 }
             }
         }
     }
 }
 
-@Composable
-fun SudokuApp(modifier: Modifier = Modifier) {
-   val navController = rememberNavController()
-
-    NavHost (navController= navController, startDestination = "home",modifier= modifier){
-        composable("home") {
-            HomeScreen(navController=navController, modifier = modifier)
-        }
-        composable("sudokuScreen/{mode}/{level}") { backStackEntry ->
-            val mode = backStackEntry.arguments?.getString("mode") ?: "free"
-            val level = backStackEntry.arguments?.getString("level") ?: "Dễ"
-            SudokuGameScreen(level = level, navController = navController, modifier = modifier)
-        }
-
-    }
-
-}
-
-
-//@Composable
-//fun HomeScreen(modifier: Modifier,navController: NavController){
-//    var selectedDifficulty by remember { mutableStateOf<Difficulty?>(null) }
-//    var showCustomDialog by remember { mutableStateOf(false) }
-//    Column(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .padding(16.dp),
-//        verticalArrangement = Arrangement.Center,
-//        horizontalAlignment = Alignment.CenterHorizontally
-//    ) {
-//        Button(
-//            onClick = {
-//                showCustomDialog = true
-//            },
-//            modifier = Modifier.padding(bottom = 16.dp)
-//            ) {
-//            CustomButton(text = "Tự do")
-//        }
-//        Button(
-//            onClick = {},
-//            modifier = Modifier.padding(bottom = 16.dp)
-//        ) {
-//            CustomButton(text = "Thử thách")
-//        }
-//        AnimatedVisibility(
-//            visible = showCustomDialog,
-//            enter = fadeIn(animationSpec = tween(300)),
-//            exit = fadeOut(animationSpec = tween(200))
-//        ) {
-//            DifficultyDialog(
-//                currentDifficulty = selectedDifficulty,
-//                onDifficultySelected = {
-//                    selectedDifficulty = it
-//                    showCustomDialog = false
-//                },
-//                onDismiss = { showCustomDialog = false },
-//                navController
-//            )
-//        }
-//    }
-//}
 
 @Composable
 fun HomeScreen(modifier: Modifier, navController: NavController) {
-    // trạng thái chung cho dialog
     var showDifficultyDialog by remember { mutableStateOf(false) }
-    // lưu mode hiện tại: "free" hoặc "challenge"
     var currentMode by remember { mutableStateOf("free") }
-    // (có thể hiển thị tên mode lên UI nếu cần debug)
 
     Column(
         modifier = modifier
@@ -155,57 +118,49 @@ fun HomeScreen(modifier: Modifier, navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "SUDOKU",
+            text = stringResource(id = R.string.app_name),
             style = MaterialTheme.typography.displayMedium.copy(
                 fontWeight = FontWeight.Bold,
-                color = (Color(0xFF000000))
+                color = Color.Black
             ),
             modifier = Modifier.padding(bottom = 48.dp)
         )
 
-        // Nút Chơi Tự do → mở dialog chọn độ khó, sau đó chơi free
         GameModeButton(
             icon = Icons.Default.PlayArrow,
-            text = "Chơi Tự do",
-            description = "Chơi không giới hạn thời gian",
+            text = stringResource(R.string.casual),
+            description = stringResource(R.string.game_mode_free_desc),
             onClick = {
+                SoundManager.playClickSound()
                 currentMode = "free"
                 showDifficultyDialog = true
             },
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Nút Thử thách → mở dialog chọn độ khó, sau đó chơi có giới hạn thời gian
         GameModeButton(
             icon = Icons.Default.Timer,
-            text = "Thử thách",
-            description = "Hoàn thành trong thời gian giới hạn",
+            text = stringResource(R.string.challenge),
+            description = stringResource(R.string.game_mode_challenge_desc),
             onClick = {
-//                currentMode = "challenge"
-//                showDifficultyDialog = true
+                SoundManager.playClickSound()
+                currentMode = "challenge"
+                showDifficultyDialog = true
             }
         )
     }
 
-    // Dialog chọn độ khó dùng lại DifficultyDialog
     AnimatedVisibility(
         visible = showDifficultyDialog,
         enter = fadeIn(animationSpec = tween(300)),
         exit = fadeOut(animationSpec = tween(200))
     ) {
         DifficultyDialog(
-            currentDifficulty = null,
             onDifficultySelected = { difficulty ->
                 showDifficultyDialog = false
-                // điều hướng khác nhau dựa vào mode
-                when (currentMode) {
-                    "free" -> navController.navigate("sudokuScreen/free/${difficulty.displayName}")
-                    "challenge" -> navController.navigate("sudokuScreen/challenge/${difficulty.displayName}")
-                }
+                navigateToGame(navController, currentMode, difficulty)
             },
-            onDismiss = { showDifficultyDialog = false },
-            navController = navController, // nếu bạn dùng navController bên trong dialog
-            currentMode = currentMode
+            onDismiss = { showDifficultyDialog = false }
         )
     }
 }
@@ -257,29 +212,9 @@ fun GameModeButton(
 }
 
 @Composable
-fun CustomButton(text : String){
-    Row(
-        modifier = Modifier
-            .fillMaxWidth(0.4f),
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text= text,
-            fontWeight = FontWeight(600),
-            fontSize = 24.sp
-        )
-    }
-
-}
-
-
-@Composable
 fun DifficultyDialog(
-    currentDifficulty: Difficulty?,
     onDifficultySelected: (Difficulty) -> Unit,
-    onDismiss: () -> Unit,
-    navController: NavController,
-    currentMode : String
+    onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -293,37 +228,32 @@ fun DifficultyDialog(
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
-                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "CHỌN ĐỘ KHÓ",
+                        text = stringResource(R.string.choose_difficulty),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF4CAF50)
                         )
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Đóng")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Difficulty Options
                 Difficulty.values().forEach { difficulty ->
                     DifficultyItem(
                         difficulty = difficulty,
-                        isSelected = currentDifficulty == difficulty,
+                        isSelected = false,
                         onClick = {
                             onDifficultySelected(difficulty)
-                            navController.navigate("sudokuScreen/$currentMode/${difficulty.displayName}")
-                        },
-
-
+                        }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -337,7 +267,6 @@ fun DifficultyItem(
     difficulty: Difficulty,
     isSelected: Boolean,
     onClick: () -> Unit,
-
 ) {
     Surface(
         modifier = Modifier
@@ -374,17 +303,12 @@ fun DifficultyItem(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            if (isSelected) {
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Đã chọn",
-                    tint = Color(0xFF4CAF50),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
         }
     }
+}
+
+fun navigateToGame(navController: NavController, mode: String, difficulty: Difficulty) {
+    navController.navigate("sudokuScreen/$mode/${difficulty.displayName}")
 }
 
 enum class Difficulty(
@@ -398,21 +322,21 @@ enum class Difficulty(
         "Dễ",
         "Cho người mới bắt đầu",
         Icons.Default.SentimentVerySatisfied,
-        Color(0xFF4CAF50), // Green
+        Color(0xFF4CAF50),
         30
     ),
     MEDIUM(
         "Trung bình",
         "Thử thách vừa phải",
         Icons.Default.SentimentNeutral,
-        Color(0xFF2196F3), // Blue
+        Color(0xFF2196F3),
         45
     ),
     HARD(
         "Khó",
         "Dành cho cao thủ",
         Icons.Default.SentimentVeryDissatisfied,
-        Color(0xFFF44336), // Red
+        Color(0xFFF44336),
         60
     )
 }

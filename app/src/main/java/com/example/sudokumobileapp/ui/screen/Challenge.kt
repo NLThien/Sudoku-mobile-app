@@ -1,8 +1,6 @@
 package com.example.sudokumobileapp.ui.screen
 
 import android.content.Context
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,43 +36,39 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-// Tạo DataStore để lưu chế độ theme
+// DataStore
 private val Context.dataStore by preferencesDataStore("settings")
 private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
 
-// Hàm format thời gian hiển thị
-fun formatTime(seconds: Long): String {
-    val minutes = seconds / 60
-    val remainingSeconds = seconds % 60
+// Format thời gian
+fun countDownTime(seconds: Long): String {
+    val safeSeconds = if (seconds < 0) 0 else seconds
+    val minutes = safeSeconds / 60
+    val remainingSeconds = safeSeconds % 60
     return String.format("%02d:%02d", minutes, remainingSeconds)
 }
 
-private fun isEditableCell(
-    initialBoard: Array<Array<MutableState<Int>>>,
-    row: Int,
-    col: Int,
-): Boolean {
+
+// Kiểm tra ô có cho phép chỉnh sửa không
+private fun isEditableCell(initialBoard: Array<Array<MutableState<Int>>>, row: Int, col: Int): Boolean {
     return initialBoard[row][col].value == 0
 }
 
-// Composable màn hình chơi Sudoku
 @Composable
-fun SudokuGameScreen(
+fun SudokuChallengeGameScreen(
     navController: NavController,
     modifier: Modifier,
     level: String,
-    mode: String,
+    mode: String
 ) {
     val context = LocalContext.current
     var isDarkTheme by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // Các trạng thái game
     var selectedCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var showExitDialog by remember { mutableStateOf(false) }
-    var showPausedDialog by remember { mutableStateOf(false) }
     var showWinDialog by remember { mutableStateOf(false) }
-    var elapsedTime by remember { mutableStateOf(0L) }
+    var showGameOverDialog by remember { mutableStateOf(false) }
     var isTimerRunning by remember { mutableStateOf(true) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -82,7 +76,6 @@ fun SudokuGameScreen(
     val solver = remember { SudokuSolver() }
     val validator = remember { BoardValidator() }
 
-    // Chuyển độ khó từ chuỗi sang enum
     val diffEnum = when (level) {
         stringResource(R.string.difficulty_easy) -> Difficulty.EASY
         stringResource(R.string.difficulty_medium) -> Difficulty.MEDIUM
@@ -90,30 +83,48 @@ fun SudokuGameScreen(
         else -> Difficulty.EASY
     }
 
-    // Tạo bảng game và lời giải
-    var rawBoard = remember(diffEnum) { generator.generate(diffEnum).cells } //bảng gốc
-    var board = remember { mutableStateOf(Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }) } //bảng dùng để hiển thị, cập nhật lên màn hình
-    val initialBoard = remember { board.value.map { row -> row.map { cell -> mutableStateOf(cell.value) }.toTypedArray() }.toTypedArray() }// bảng dùng kiểm tra ô gốc (có được sửa hay không)
-    val solution = remember { solver.solve(rawBoard) ?: Array(9) { IntArray(9) } }//bảng đáp án
+    val challengeTimeLimit = when (diffEnum) {
+        Difficulty.EASY -> 180L
+        Difficulty.MEDIUM -> 360L
+        Difficulty.HARD -> 600L
+    }
 
-    // BackHandler khi nhấn nút quay lại
+    var remainingTime by remember { mutableStateOf(challengeTimeLimit) }
+
+    var rawBoard = remember(diffEnum) { generator.generate(diffEnum).cells }
+    var board = remember {
+        mutableStateOf(Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } })
+    }
+    val initialBoard = remember {
+        board.value.map { row ->
+            row.map { cell -> mutableStateOf(cell.value) }.toTypedArray()
+        }.toTypedArray()
+    }
+    val solution = remember { solver.solve(rawBoard) ?: Array(9) { IntArray(9) } }
+
+    // Xử lý nút back
     BackHandler(enabled = true) { showExitDialog = true }
 
-    // Tải theme từ DataStore
+    // Đọc dark theme từ DataStore
     LaunchedEffect(Unit) {
         val preferences = context.dataStore.data.first()
         isDarkTheme = preferences[DARK_THEME_KEY] ?: false
     }
 
-    // Đếm thời gian
+    // Timer đếm ngược
     LaunchedEffect(isTimerRunning) {
-        while (isTimerRunning) {
+        while (isTimerRunning && remainingTime > 0) {
             delay(1000L)
-            elapsedTime++
+            remainingTime--
+            if (remainingTime <= 0) {
+                remainingTime = 0
+                isTimerRunning = false
+                showGameOverDialog = true
+            }
         }
     }
 
-    // Lắng nghe lifecycle để tạm dừng timer
+    // Observe Lifecycle (pause/resume)
     DisposableEffect(lifecycleOwner) {
         val observer = TimerLifecycleObserver(
             onPause = { isTimerRunning = false },
@@ -123,44 +134,51 @@ fun SudokuGameScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Hiển thị các hộp thoại
+    // Dialogs
     if (showExitDialog) NotificationExit(
         onConfirm = { navController.popBackStack() },
         onDismiss = { showExitDialog = false; isTimerRunning = true }
     )
 
-    if (showPausedDialog) PauseMenu(
-        onResume = { showPausedDialog = false; isTimerRunning = true },
-        onRestart = {
-            // Reset lại từng ô theo rawBoard ban đầu
-            for (r in 0..8) {
-                for (c in 0..8) {
-                    board.value[r][c].value = rawBoard[r][c]
-                }
-            }
-            elapsedTime = 0L
-            isTimerRunning = true
-            showWinDialog = false
-        },
-        onExit = { navController.popBackStack() }
-    )
-
     if (showWinDialog) SudokuWinDialog(
-        time = elapsedTime,
+        time = challengeTimeLimit - remainingTime,
         onRestart = {
-            // Reset lại từng ô theo rawBoard ban đầu
-            for (r in 0..8) {
-                for (c in 0..8) {
-                    board.value[r][c].value = rawBoard[r][c]
-                }
-            }
-            elapsedTime = 0L
+            rawBoard = generator.generate(diffEnum).cells
+            board.value = Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }
+            remainingTime = challengeTimeLimit
             isTimerRunning = true
             showWinDialog = false
         },
         onExit = { navController.popBackStack() }
     )
 
+    if (showGameOverDialog) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(id = R.string.time_up)) },
+            text = { Text(stringResource(id = R.string.you_ran_out_of_time)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    SoundManager.playClickSound()
+                    rawBoard = generator.generate(diffEnum).cells
+                    board.value = Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }
+                    remainingTime = challengeTimeLimit
+                    isTimerRunning = true
+                    showGameOverDialog = false
+                }) {
+                    Text(stringResource(id = R.string.restart))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { SoundManager.playClickSound()
+                    navController.popBackStack() }) {
+                    Text(stringResource(id = R.string.exit))
+                }
+            }
+        )
+    }
+
+    // UI Game Screen
     SudokuMobileAppTheme(darkTheme = isDarkTheme) {
         Column(
             modifier = Modifier
@@ -169,6 +187,7 @@ fun SudokuGameScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -184,7 +203,7 @@ fun SudokuGameScreen(
                 )
 
                 Text(
-                    text = formatTime(elapsedTime),
+                    text = countDownTime(remainingTime),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         color = if (isDarkTheme) Color.White else Color.Black,
                         fontWeight = FontWeight.Bold
@@ -204,48 +223,12 @@ fun SudokuGameScreen(
                 )
             }
 
-            // Nút chọn độ khó
+            // Difficulty Display
             Button(onClick = {}, modifier = Modifier.padding(bottom = 16.dp)) {
                 Text("${stringResource(R.string.difficulty)}: $level")
             }
 
-            // Nút tạm dừng và gợi ý
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Button(
-                    onClick = {SoundManager.playClickSound()
-                        showPausedDialog = true; isTimerRunning = false },
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Text(stringResource(id = R.string.pause))
-                }
-
-                Button(
-                    onClick = {
-                        SoundManager.playClickSound()
-                        selectedCell?.let { (r, c) ->
-                            if (board.value[r][c].value == 0) {
-                                board.value[r][c].value = solution[r][c]
-                                if (validator.isBoardValid(board.value.map { row ->
-                                        row.map { it.value }.toIntArray()
-                                    }.toTypedArray())) {
-                                    isTimerRunning = false
-                                    showWinDialog = true
-                                }
-                            }
-                        }
-                    },
-                    enabled = selectedCell?.let { board.value[it.first][it.second].value == 0 } == true,
-                    modifier = Modifier.width(120.dp)
-                ) {
-                    Text(stringResource(id = R.string.hint))
-                }
-            }
-
+            // Sudoku Grid
             Column(
                 modifier = Modifier.border(2.dp, if (isDarkTheme) Color.White else Color.Black)
             ) {
@@ -253,15 +236,11 @@ fun SudokuGameScreen(
                     Row {
                         for (col in 0 until 9) {
                             val cell = board.value[row][col]
-                            val isSelected =
-                                selectedCell?.let { it.first == row && it.second == col } ?: false
+                            val isSelected = selectedCell?.let { it.first == row && it.second == col } ?: false
                             val isCorrect = solution[row][col] == cell.value
                             val cellColor = when {
                                 isSelected -> if (isDarkTheme) Color.DarkGray else Color.LightGray
-                                (row / 3 + col / 3) % 2 == 0 -> if (isDarkTheme) Color(0xFF2C2C2C) else Color(
-                                    0xFFE8F5E9
-                                )
-
+                                (row / 3 + col / 3) % 2 == 0 -> if (isDarkTheme) Color(0xFF2C2C2C) else Color(0xFFE8F5E9)
                                 else -> if (isDarkTheme) Color(0xFF1E1E1E) else Color.White
                             }
 
@@ -276,11 +255,8 @@ fun SudokuGameScreen(
                                 if (cell.value != 0) {
                                     Text(
                                         text = cell.value.toString(),
-                                        color = when {
-                                            solution[row][col] == 0 -> if (isDarkTheme) Color.White else Color.Black
-                                            isCorrect -> if (isDarkTheme) Color.White else Color.Black
-                                            else -> Color.Red
-                                        },
+                                        color = if (solution[row][col] == 0) Color.Black
+                                        else if (isCorrect) Color.Black else Color.Red,
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -291,6 +267,7 @@ fun SudokuGameScreen(
                 }
             }
 
+            // Number Pad
             Column(
                 modifier = Modifier.padding(top = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -352,12 +329,12 @@ fun SudokuGameScreen(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun PreviewSudokuGameScreen() {
+fun PreviewSudokuChallengeGameScreen() {
     val navController = rememberNavController()
-    SudokuGameScreen(
+    SudokuChallengeGameScreen(
         navController = navController,
         modifier = Modifier,
         level = stringResource(id = R.string.difficulty_easy),
-        mode = "free"
+        mode = "challenge"
     )
 }

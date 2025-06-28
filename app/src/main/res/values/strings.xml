@@ -1,3 +1,40 @@
 <resources>
-    <string name="app_name">sudoku mobile app</string>
+    <string name="app_name">Sudoku</string>
+
+    <!-- Home Screen -->
+    <string name="casual">Free Play</string>
+    <string name="challenge">Challenge</string>
+    <string name="game_mode_free_desc">Play without time limit</string>
+    <string name="game_mode_challenge_desc">Complete within the time limit</string>
+
+    <!-- Difficulty -->
+    <string name="difficulty">Difficulty</string>
+    <string name="choose_difficulty">Choose Difficulty</string>
+    <string name="difficulty_easy">Easy</string>
+    <string name="difficulty_medium">Medium</string>
+    <string name="difficulty_hard">Hard</string>
+    <string name="description_easy">For beginners</string>
+    <string name="description_medium">Moderate challenge</string>
+    <string name="description_hard">For experts</string>
+
+    <!-- Buttons -->
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="restart">Restart</string>
+    <string name="exit">Exit</string>
+    <string name="exit_game">Exit Game</string>
+    <string name="hint">Hint</string>
+    <string name="remove">Remove</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+
+    <!-- Dialog -->
+    <string name="oh_no">Oh no!</string>
+    <string name="cancel_not_save">You are about to exit.\n Unsaved progress will be lost!</string>
+
+    <string name="game_completed">Congratulations! You’ve completed the puzzle.</string>
+    <string name="time_up">Time Up</string>
+    <string name="you_ran_out_of_time">You ran out of time!</string>
+
 </resources>

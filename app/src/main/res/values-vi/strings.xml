@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">Sudoku</string>
+
+    <!-- Home Screen -->
+    <string name="casual">Chơi Tự do</string>
+    <string name="challenge">Thử thách</string>
+    <string name="game_mode_free_desc">Chơi không giới hạn thời gian</string>
+    <string name="game_mode_challenge_desc">Hoàn thành trong thời gian giới hạn</string>
+
+    <!-- Difficulty -->
+    <string name="difficulty">Độ khó</string>
+    <string name="choose_difficulty">Chọn độ khó</string>
+    <string name="difficulty_easy">Dễ</string>
+    <string name="difficulty_medium">Trung bình</string>
+    <string name="difficulty_hard">Khó</string>
+    <string name="description_easy">Dành cho người mới</string>
+    <string name="description_medium">Thử thách vừa phải</string>
+    <string name="description_hard">Dành cho cao thủ</string>
+
+    <!-- Buttons -->
+    <string name="pause">Tạm dừng</string>
+    <string name="resume">Tiếp tục</string>
+    <string name="restart">Chơi lại</string>
+    <string name="exit">Thoát</string>
+    <string name="exit_game">Thoát game</string>
+    <string name="hint">Gợi ý</string>
+    <string name="remove">Xóa</string>
+    <string name="confirm">Xác nhận</string>
+    <string name="cancel">Hủy</string>
+    <string name="close">Đóng</string>
+
+    <!-- Dialog -->
+    <string name="you_ran_out_of_time">Bạn đã hết thời gian!</string>
+    <string name="oh_no">Ôi không!</string>
+    <string name="cancel_not_save">Bạn sắp thoát.\n Tiến trình chưa lưu sẽ bị mất!</string>
+    <string name="time_up">Hết giờ!</string>
+    <string name="game_completed">Chúc mừng! Bạn đã hoàn thành.</string>
+</resources>
