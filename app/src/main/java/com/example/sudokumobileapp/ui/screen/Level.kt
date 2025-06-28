@@ -7,33 +7,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,11 +23,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.sudokumobileapp.domain.model.Difficulty
-import com.example.sudokumobileapp.domain.model.GameState
 import com.example.sudokumobileapp.domain.repository.TimerLifecycleObserver
 import com.example.sudokumobileapp.domain.usecases.generator.BoardGenerator
 import com.example.sudokumobileapp.domain.usecases.solver.SudokuSolver
@@ -60,426 +35,241 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+// Tạo DataStore để lưu chế độ theme
 private val Context.dataStore by preferencesDataStore("settings")
 private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
 
-@Composable
-fun SudokuGameScreen(navController: NavController,modifier: Modifier,level: String) {
-    val context = LocalContext.current
-    var isDarkTheme by rememberSaveable { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    var difficulty by remember { mutableStateOf(level) } // chế độ game
-
-    var selectedCell by remember { mutableStateOf<Pair<Int, Int>?>(null) } //gme
-
-    var showExitDialog by remember { mutableStateOf(false) } // hôp thoại dialog khi nhấn thoát ra
-
-    var elapsedTime by remember { mutableStateOf(0L) } // Thời gian tính bằng giây
-    var isTimerRunning by remember { mutableStateOf(true) }
-
-    var showPausedDialog by remember { mutableStateOf(false) }//hiện thị hộp toại khi nhấn tạm dừng
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var showWinDialog by remember { mutableStateOf(false) } //hiện hộp thoại hoàn thành
-    val validator = remember { BoardValidator() } //kiểm tra xem đã full số chưa
-    val solver = remember { SudokuSolver() } //lời giải
-
-    BackHandler(enabled = true) {
-        showExitDialog = true
-    }
-
-    //theme
-    LaunchedEffect(Unit) {
-        val preferences = context.dataStore.data.first()
-        isDarkTheme = preferences[DARK_THEME_KEY] ?: false
-    }
-
-    // Bộ đếm thời gian
-    LaunchedEffect(isTimerRunning) {
-        if (isTimerRunning) {
-            while (true) {
-                delay(1000L) // Cập nhật mỗi giây
-                elapsedTime++
-                Log.d("TIMER_DEBUG", "Elapsed time: $elapsedTime seconds")
-            }
-        }
-    }
-
-    // Đăng ký lifecycle observer
-    DisposableEffect(lifecycleOwner) {
-        val observer = TimerLifecycleObserver(
-            onPause = {
-                isTimerRunning=false
-                     },
-        )
-        lifecycleOwner.lifecycle.addObserver(observer)
-
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-        if (showExitDialog) {
-        isTimerRunning = false
-        NotificationExit(
-            onConfirm = {
-                // Xử lý khi xác nhận thoát
-                navController.popBackStack()
-            },
-            onDismiss = {
-                showExitDialog = false
-                isTimerRunning= true
-            }
-        )
-    }
-    // Hiển thị menu tạm dừng
-    if (showPausedDialog) {
-        PauseMenu(
-            onResume = {
-                showPausedDialog = false
-                isTimerRunning= true
-                       },
-            onRestart = {
-                // Xử lý chơi lại
-                showPausedDialog = false
-            },
-            onExit = {
-                navController.popBackStack() // Quay về màn hình trước
-            }
-        )
-    }
-
-    val generator = remember { BoardGenerator() }
-    val diffEnum = when (level) {
-        "Dễ"         -> Difficulty.EASY
-        "Trung bình" -> Difficulty.MEDIUM
-        "Khó"        -> Difficulty.HARD
-        else         -> Difficulty.EASY
-    }
-
-    var board by remember(diffEnum) {
-        mutableStateOf(generator.generate(diffEnum).cells)
-    }
-//lưu bảng các ô gốc
-    val initialBoard = board.map { it.clone() }.toTypedArray()
-
-    val solution by remember(board) {
-        mutableStateOf(solver.solve(board.map { it.clone() }.toTypedArray()) ?: Array(9) { IntArray(9) })
-    }
-
-    // Khi showWinDialog = true, gọi composable dialog
-    if (showWinDialog) {
-        SudokuWinDialog(
-            time = elapsedTime,
-            onRestart = {
-                // reset board và timer
-                board = generator.generate(diffEnum).cells
-                elapsedTime = 0L
-                isTimerRunning = true
-                showWinDialog = false
-            },
-            onExit = {
-                navController.popBackStack()
-            }
-        )
-    }
-
-    SudokuMobileAppTheme(darkTheme = isDarkTheme) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        ) {
-            Text(
-                text = "Sudoku",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    color = if (isDarkTheme) Color.White else Color.Black,
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier.align(Alignment.Center)
-            )
-            Text(
-                text = formatTime(elapsedTime),
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    color = if (isDarkTheme) Color.White else Color.Black,
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier.align(Alignment.TopStart)
-            )
-            Switch(
-                checked = isDarkTheme,
-                onCheckedChange = {
-                    isDarkTheme = it
-                    scope.launch {
-                        context.dataStore.edit { settings ->
-                            settings[DARK_THEME_KEY] = it
-                        }
-                    }
-                },
-                modifier = Modifier.align(Alignment.CenterEnd)
-            )
-        }
-
-
-
-        // Chọn độ khó
-        Box {
-            Button(
-                onClick = { },
-                modifier = Modifier.padding(bottom = 16.dp)
-
-            ) {
-                Text(text = "Độ khó: $difficulty")
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp), // Khoảng cách với các thành phần khác
-            horizontalArrangement = Arrangement.Center, // Căn giữa theo chiều ngang
-        ) {
-            Button(
-            onClick = {
-                showPausedDialog = true
-                isTimerRunning=false
-            },
-            modifier = Modifier.padding(bottom = 16.dp, end = 8.dp)
-
-        ) {
-            Text(
-                text = "Tạm dừng"
-            )
-        }
-            Button(
-            onClick = {
-                selectedCell?.let { (r, c) ->
-                    if (board[r][c] == 0) {
-                        // Tạo bản sao của bảng hiện tại
-                        val boardCopy = board.map { it.clone() }.toTypedArray()
-
-                        // Giải bảng để lấy lời giải hoàn chỉnh
-                        val solution = solver.solve(boardCopy)
-
-                        if (solution != null) {
-                            // Lấy số từ lời giải tại vị trí đã chọn
-                            val hintNumber = solution[r][c]
-
-                            // Cập nhật bảng với số gợi ý
-                            val newBoard = board.map { it.clone() }.toTypedArray()
-                            newBoard[r][c] = hintNumber
-                            board = newBoard
-
-                            // Kiểm tra hoàn thành
-                            if (validator.isBoardValid(board)) {
-                                isTimerRunning = false
-                                showWinDialog = true
-                            }
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Không tìm được lời giải cho bảng này",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                }
-            },
-            enabled = selectedCell != null && board[selectedCell!!.first][selectedCell!!.second] == 0,
-            modifier = Modifier.width(120.dp)
-        ) {
-            Text("Gợi ý")
-        }
-        }
-        // Bảng Sudoku
-        SudokuBoard(
-            board = board,
-            selectedCell = selectedCell,
-            onCellSelected = { row, col -> selectedCell = row to col },
-            isDarkTheme = isDarkTheme,
-            solution = solution
-        )
-
-
-        // Bàn phím số
-        NumberPad(
-            modifier = Modifier.padding(top = 16.dp),
-            onNumberSelected = { number ->
-                selectedCell?.let { (row, col) ->
-                    // Chỉ cho phép điền số vào ô trống (giá trị 0)
-                    if (board[row][col] == 0) {
-                        board[row][col] = number
-                        // Kiểm tra thắng ngay
-                        if (validator.isBoardValid(board)) {
-                            isTimerRunning = false
-                            showWinDialog = true
-                        }
-                    }
-                }
-            },
-            onClearSelected = {
-                selectedCell?.let { (row, col) ->
-                    // Chỉ cho phép xóa ô không phải là ô cố định
-                    if (isEditableCell(initialBoard, row, col)) {
-                        board[row][col] = 0
-                    }
-                }
-            },
-            isDarkTheme = isDarkTheme
-
-        )
-    }
-    }
-}
-
-
-// Định dạng thời gian
+// Hàm format thời gian hiển thị
 fun formatTime(seconds: Long): String {
     val minutes = seconds / 60
     val remainingSeconds = seconds % 60
     return String.format("%02d:%02d", minutes, remainingSeconds)
 }
 
+// Hàm kiểm tra ô có phải là ô được phép chỉnh sửa hay không (ô ban đầu trống)
+private fun isEditableCell(initialBoard: Array<Array<MutableState<Int>>>, row: Int, col: Int): Boolean {
+    return initialBoard[row][col].value == 0
+}
+
+// Composable màn hình chơi Sudoku
 @Composable
-fun SudokuBoard(
-    board: Array<IntArray>,
-    selectedCell: Pair<Int, Int>?,
-    onCellSelected: (Int, Int) -> Unit,
-    isDarkTheme: Boolean,
-    solution: Array<IntArray>
-) {
-    val cellBackgroundColor: (Int, Int, Boolean) -> Color = { row, col, isSelected ->
-        when {
-            isSelected -> if (isDarkTheme) Color.DarkGray else Color.LightGray
-            (row / 3 + col / 3) % 2 == 0 -> if (isDarkTheme) Color(0xFF2C2C2C) else Color(0xFFE8F5E9)
-            else -> if (isDarkTheme) Color(0xFF1E1E1E) else Color.White
+fun SudokuGameScreen(navController: NavController, modifier: Modifier, level: String) {
+    val context = LocalContext.current
+    var isDarkTheme by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    // Các trạng thái game
+    var selectedCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var showExitDialog by remember { mutableStateOf(false) }
+    var showPausedDialog by remember { mutableStateOf(false) }
+    var showWinDialog by remember { mutableStateOf(false) }
+    var elapsedTime by remember { mutableStateOf(0L) }
+    var isTimerRunning by remember { mutableStateOf(true) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val generator = remember { BoardGenerator() }
+    val solver = remember { SudokuSolver() }
+    val validator = remember { BoardValidator() }
+
+    // Chuyển độ khó từ chuỗi sang enum
+    val diffEnum = when (level) {
+        "Dễ" -> Difficulty.EASY
+        "Trung bình" -> Difficulty.MEDIUM
+        "Khó" -> Difficulty.HARD
+        else -> Difficulty.EASY
+    }
+
+    // Tạo bảng game và lời giải
+    var rawBoard = remember(diffEnum) { generator.generate(diffEnum).cells }
+    var board = remember { mutableStateOf(Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }) }
+    val initialBoard = remember { board.value.map { row -> row.map { cell -> mutableStateOf(cell.value) }.toTypedArray() }.toTypedArray() }
+    val solution = remember { solver.solve(rawBoard) ?: Array(9) { IntArray(9) } }
+
+    // BackHandler khi nhấn nút quay lại
+    BackHandler(enabled = true) { showExitDialog = true }
+
+    // Tải theme từ DataStore
+    LaunchedEffect(Unit) {
+        val preferences = context.dataStore.data.first()
+        isDarkTheme = preferences[DARK_THEME_KEY] ?: false
+    }
+
+    // Đếm thời gian
+    LaunchedEffect(isTimerRunning) {
+        while (isTimerRunning) {
+            delay(1000L)
+            elapsedTime++
         }
     }
-    Column(
-        modifier = Modifier
-            .border(2.dp, if (isDarkTheme) Color.White else Color.Black)
-    ) {
-        for (row in 0 until 9) {
-            Row {
-                for (col in 0 until 9) {
-                    val cellValue = board[row][col]
-                    val isSelected = selectedCell?.let { it.first == row && it.second == col } ?: false
-                    val isCorrect = solution[row][col] == cellValue
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .border(1.dp, Color.Gray)
-                            .background(cellBackgroundColor(row, col, isSelected))
-                            .clickable { onCellSelected(row, col) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (cellValue != 0) {
-                            Text(
-                                text = cellValue.toString(),
-                                color = when {
-                                    solution[row][col] == 0 -> Color.Black // nếu chưa có lời giải
-                                    isCorrect -> if (isDarkTheme) Color.White else Color.Black
-                                    else -> Color.Red // sai thì đỏ
+
+    // Lắng nghe lifecycle để tạm dừng timer
+    DisposableEffect(lifecycleOwner) {
+        val observer = TimerLifecycleObserver(onPause = { isTimerRunning = false })
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Hiển thị các hộp thoại
+    if (showExitDialog) NotificationExit(
+        onConfirm = { navController.popBackStack() },
+        onDismiss = { showExitDialog = false; isTimerRunning = true }
+    )
+
+    if (showPausedDialog) PauseMenu(
+        onResume = { showPausedDialog = false; isTimerRunning = true },
+        onRestart = {},
+        onExit = { navController.popBackStack() }
+    )
+
+    if (showWinDialog) SudokuWinDialog(
+        time = elapsedTime,
+        onRestart = {
+            rawBoard = generator.generate(diffEnum).cells
+            board.value = Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }
+            elapsedTime = 0L
+            isTimerRunning = true
+            showWinDialog = false
+        },
+        onExit = { navController.popBackStack() }
+    )
+
+    // Theme toàn màn
+    SudokuMobileAppTheme(darkTheme = isDarkTheme) {
+        Column(
+            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Header chứa tiêu đề, thời gian và switch theme
+            Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                Text("Sudoku", style = MaterialTheme.typography.headlineLarge.copy(
+                    color = if (isDarkTheme) Color.White else Color.Black,
+                    fontWeight = FontWeight.Bold
+                ), modifier = Modifier.align(Alignment.Center))
+
+                Text(formatTime(elapsedTime), style = MaterialTheme.typography.headlineLarge.copy(
+                    color = if (isDarkTheme) Color.White else Color.Black,
+                    fontWeight = FontWeight.Bold
+                ), modifier = Modifier.align(Alignment.TopStart))
+
+                Switch(
+                    checked = isDarkTheme,
+                    onCheckedChange = {
+                        isDarkTheme = it
+                        scope.launch {
+                            context.dataStore.edit { settings -> settings[DARK_THEME_KEY] = it }
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
+            }
+
+            // Nút chọn độ khó
+            Button(onClick = {}, modifier = Modifier.padding(bottom = 16.dp)) {
+                Text("Độ khó: $level")
+            }
+
+            // Nút tạm dừng và gợi ý
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Button(onClick = { showPausedDialog = true; isTimerRunning = false },
+                    modifier = Modifier.padding(end = 8.dp)) { Text("Tạm dừng") }
+
+                Button(
+                    onClick = {
+                        selectedCell?.let { (r, c) ->
+                            if (board.value[r][c].value == 0) {
+                                board.value[r][c].value = solution[r][c]
+                                if (validator.isBoardValid(board.value.map { row -> row.map { it.value }.toIntArray() }.toTypedArray())) {
+                                    isTimerRunning = false
+                                    showWinDialog = true
+                                }
+                            }
+                        }
+                    },
+                    enabled = selectedCell?.let { board.value[it.first][it.second].value == 0 } == true,
+                    modifier = Modifier.width(120.dp)
+                ) { Text("Gợi ý") }
+            }
+
+            // Bảng Sudoku
+            Column(modifier = Modifier.border(2.dp, if (isDarkTheme) Color.White else Color.Black)) {
+                for (row in 0 until 9) {
+                    Row {
+                        for (col in 0 until 9) {
+                            val cell = board.value[row][col]
+                            val isSelected = selectedCell?.let { it.first == row && it.second == col } ?: false
+                            val isCorrect = solution[row][col] == cell.value
+                            val cellColor = when {
+                                isSelected -> if (isDarkTheme) Color.DarkGray else Color.LightGray
+                                (row / 3 + col / 3) % 2 == 0 -> if (isDarkTheme) Color(0xFF2C2C2C) else Color(0xFFE8F5E9)
+                                else -> if (isDarkTheme) Color(0xFF1E1E1E) else Color.White
+                            }
+
+                            Box(
+                                modifier = Modifier.size(36.dp).border(1.dp, Color.Gray).background(cellColor).clickable {
+                                    selectedCell = row to col
                                 },
-                                fontSize = 20.sp,
-                                fontWeight =  FontWeight.Bold
-                            )
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (cell.value != 0) {
+                                    Text(
+                                        text = cell.value.toString(),
+                                        color = if (solution[row][col] == 0) Color.Black else if (isCorrect) Color.Black else Color.Red,
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
+                }
+            }
+
+            // Bàn phím số
+            Column(modifier = Modifier.padding(top = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                for (chunk in listOf(1..3, 4..6, 7..9)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                        for (number in chunk) {
+                            Box(
+                                modifier = Modifier.size(48.dp).background(if (isDarkTheme) Color(0xFF2C2C2C) else Color.White)
+                                    .border(1.dp, if (isDarkTheme) Color.LightGray else Color.Gray).clickable {
+                                        selectedCell?.let { (row, col) ->
+                                            if (isEditableCell(initialBoard, row, col)) {
+                                                board.value[row][col].value = number
+                                                if (validator.isBoardValid(board.value.map { row -> row.map { it.value }.toIntArray() }.toTypedArray())) {
+                                                    isTimerRunning = false
+                                                    showWinDialog = true
+                                                }
+                                            }
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(number.toString(), fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                                    color = if (isDarkTheme) Color.White else Color.Black)
+                            }
+                        }
+                    }
+                }
+
+                // Nút xóa
+                Button(onClick = {
+                    selectedCell?.let { (row, col) ->
+                        if (isEditableCell(initialBoard, row, col)) {
+                            board.value[row][col].value = 0
+                        }
+                    }
+                }, modifier = Modifier.width(100.dp)) {
+                    Text("Xóa")
                 }
             }
         }
     }
 }
 
-@Composable
-fun NumberPad(
-    modifier: Modifier = Modifier,
-    onNumberSelected: (Int) -> Unit,
-    onClearSelected: () -> Unit,
-    isDarkTheme: Boolean,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Hàng số 1-3
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 8.dp)
-        ) {
-            for (number in 1..3) {
-                NumberButton(number = number, onClick = { onNumberSelected(number) }, isDarkTheme = isDarkTheme)
-            }
-        }
-        // Hàng số 4-6
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 8.dp)
-        ) {
-            for (number in 4..6) {
-                NumberButton(number = number, onClick = { onNumberSelected(number) }, isDarkTheme = isDarkTheme)
-            }
-        }
-        // Hàng số 7-9
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 8.dp)
-        ) {
-            for (number in 7..9) {
-                NumberButton(number = number, onClick = { onNumberSelected(number) }, isDarkTheme = isDarkTheme)
-            }
-        }
-        // Nút xóa
-        Button(
-            onClick = onClearSelected,
-            modifier = Modifier.width(100.dp)
-        ) {
-            Text(
-                text = "Xóa",
-            )
-        }
-    }
-}
-
-@Composable
-fun NumberButton(number: Int, onClick: () -> Unit, isDarkTheme: Boolean) {
-    val backgroundColor = if (isDarkTheme) Color(0xFF2C2C2C) else Color.White
-    val textColor = if (isDarkTheme) Color.White else Color.Black
-    val borderColor = if (isDarkTheme) Color.LightGray else Color.Gray
-
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .background(backgroundColor)
-            .border(1.dp, borderColor)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = number.toString(),
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = textColor
-        )
-    }
-}
-
-
-// Hàm kiểm tra ô có thể chỉnh sửa không (ô trống ban đầu)
-private fun isEditableCell(initialBoard: Array<IntArray>, row: Int, col: Int): Boolean {
-    return initialBoard[row][col] == 0
-}
-
+// Xem thử màn hình
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PreviewSudokuGameScreen() {
