@@ -80,10 +80,10 @@ fun SudokuGameScreen(navController: NavController, modifier: Modifier, level: St
     }
 
     // Tạo bảng game và lời giải
-    var rawBoard = remember(diffEnum) { generator.generate(diffEnum).cells }
-    var board = remember { mutableStateOf(Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }) }
-    val initialBoard = remember { board.value.map { row -> row.map { cell -> mutableStateOf(cell.value) }.toTypedArray() }.toTypedArray() }
-    val solution = remember { solver.solve(rawBoard) ?: Array(9) { IntArray(9) } }
+    var rawBoard = remember(diffEnum) { generator.generate(diffEnum).cells } //bảng gốc
+    var board = remember { mutableStateOf(Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }) } //bảng dùng để hiển thị, cập nhật lên màn hình
+    val initialBoard = remember { board.value.map { row -> row.map { cell -> mutableStateOf(cell.value) }.toTypedArray() }.toTypedArray() }// bảng dùng kiểm tra ô gốc (có được sửa hay không)
+    val solution = remember { solver.solve(rawBoard) ?: Array(9) { IntArray(9) } }//bảng đáp án
 
     // BackHandler khi nhấn nút quay lại
     BackHandler(enabled = true) { showExitDialog = true }
@@ -216,7 +216,11 @@ fun SudokuGameScreen(navController: NavController, modifier: Modifier, level: St
                                 if (cell.value != 0) {
                                     Text(
                                         text = cell.value.toString(),
-                                        color = if (solution[row][col] == 0) Color.Black else if (isCorrect) Color.Black else Color.Red,
+                                        color = when {
+                                            solution[row][col] == 0 -> if (isDarkTheme) Color.White else Color.Black
+                                            isCorrect -> if (isDarkTheme) Color.White else Color.Black
+                                            else -> Color.Red
+                                        },
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold
                                     )

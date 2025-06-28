@@ -28,7 +28,7 @@ class BoardGenerator {
         for (row in 0..8) {
             for (col in 0..8) {
                 if (board[row][col] == 0) {
-                    for (num in 1..9) {
+                    for (num in (1..9).shuffled()) {  //tạo tính ngẫu nhiên, tránh lặp lại theo thứ tự cũ
                         if (isValid(board, row, col, num)) {
                             board[row][col] = num
                             if (solve(board)) return true
