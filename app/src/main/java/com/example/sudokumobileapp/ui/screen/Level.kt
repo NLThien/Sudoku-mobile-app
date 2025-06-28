@@ -104,7 +104,7 @@ fun SudokuGameScreen(navController: NavController, modifier: Modifier, level: St
 
     // Lắng nghe lifecycle để tạm dừng timer
     DisposableEffect(lifecycleOwner) {
-        val observer = TimerLifecycleObserver(onPause = { isTimerRunning = false })
+        val observer = TimerLifecycleObserver(onPause = { isTimerRunning = false }, onResume = {isTimerRunning = true})
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
