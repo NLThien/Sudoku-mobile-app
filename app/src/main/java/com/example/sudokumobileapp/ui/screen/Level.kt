@@ -117,15 +117,29 @@ fun SudokuGameScreen(navController: NavController, modifier: Modifier, level: St
 
     if (showPausedDialog) PauseMenu(
         onResume = { showPausedDialog = false; isTimerRunning = true },
-        onRestart = {},
+        onRestart = {
+            // Reset lại từng ô theo rawBoard ban đầu
+            for (r in 0..8) {
+                for (c in 0..8) {
+                    board.value[r][c].value = rawBoard[r][c]
+                }
+            }
+            elapsedTime = 0L
+            isTimerRunning = true
+            showWinDialog = false
+        },
         onExit = { navController.popBackStack() }
     )
 
     if (showWinDialog) SudokuWinDialog(
         time = elapsedTime,
         onRestart = {
-            rawBoard = generator.generate(diffEnum).cells
-            board.value = Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }
+            // Reset lại từng ô theo rawBoard ban đầu
+            for (r in 0..8) {
+                for (c in 0..8) {
+                    board.value[r][c].value = rawBoard[r][c]
+                }
+            }
             elapsedTime = 0L
             isTimerRunning = true
             showWinDialog = false
