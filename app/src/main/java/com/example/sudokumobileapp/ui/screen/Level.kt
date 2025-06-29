@@ -1,8 +1,6 @@
 package com.example.sudokumobileapp.ui.screen
 
 import android.content.Context
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,10 +33,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import com.example.sudokumobileapp.data.repository.SoundManager
+import com.example.sudokumobileapp.data.repository.ThemePreferences
 
 // Tạo DataStore để lưu chế độ theme
-private val Context.dataStore by preferencesDataStore("settings")
-private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
+//private val Context.dataStore by preferencesDataStore("settings")
+//private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
 
 // Hàm format thời gian hiển thị
 fun formatTime(seconds: Long): String {
@@ -58,7 +57,12 @@ private fun isEditableCell(
 
 // Composable màn hình chơi Sudoku
 @Composable
-fun SudokuGameScreen(navController: NavController, modifier: Modifier, level: String) {
+fun SudokuGameScreen(
+    navController: NavController,
+    modifier: Modifier,
+    level: String,
+    mode: String,
+) {
     val context = LocalContext.current
     var isDarkTheme by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -100,8 +104,7 @@ fun SudokuGameScreen(navController: NavController, modifier: Modifier, level: St
 
     // Tải theme từ DataStore
     LaunchedEffect(Unit) {
-        val preferences = context.dataStore.data.first()
-        isDarkTheme = preferences[DARK_THEME_KEY] ?: false
+        isDarkTheme = ThemePreferences.loadTheme(context)
     }
 
     // Đếm thời gian
@@ -155,9 +158,11 @@ fun SudokuGameScreen(navController: NavController, modifier: Modifier, level: St
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header chứa tiêu đề, thời gian và switch theme
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
                 Text(
                     "Sudoku", style = MaterialTheme.typography.headlineLarge.copy(
                         color = if (isDarkTheme) Color.White else Color.Black,
@@ -177,7 +182,7 @@ fun SudokuGameScreen(navController: NavController, modifier: Modifier, level: St
                     onCheckedChange = {
                         isDarkTheme = it
                         scope.launch {
-                            context.dataStore.edit { settings -> settings[DARK_THEME_KEY] = it }
+                            ThemePreferences.saveTheme(context, it)
                         }
                     },
                     modifier = Modifier.align(Alignment.CenterEnd)
@@ -334,6 +339,7 @@ fun PreviewSudokuGameScreen() {
     SudokuGameScreen(
         navController = navController,
         modifier = Modifier,
-        level = "Dễ"
+        level = "Dễ",
+        mode = "free"
     )
 }

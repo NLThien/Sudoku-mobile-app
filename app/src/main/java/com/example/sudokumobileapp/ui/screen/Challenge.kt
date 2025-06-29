@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -15,9 +16,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
@@ -35,10 +39,11 @@ import com.example.sudokumobileapp.ui.theme.SudokuMobileAppTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.example.sudokumobileapp.data.repository.ThemePreferences
 
-// DataStore
-private val Context.dataStore by preferencesDataStore("settings")
-private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
+//// DataStore
+//private val Context.dataStore by preferencesDataStore("settings")
+//private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
 
 // Format thời gian
 fun countDownTime(seconds: Long): String {
@@ -107,8 +112,7 @@ fun SudokuChallengeGameScreen(
 
     // Đọc dark theme từ DataStore
     LaunchedEffect(Unit) {
-        val preferences = context.dataStore.data.first()
-        isDarkTheme = preferences[DARK_THEME_KEY] ?: false
+        isDarkTheme = ThemePreferences.loadTheme(context)
     }
 
     // Timer đếm ngược
@@ -153,30 +157,88 @@ fun SudokuChallengeGameScreen(
     )
 
     if (showGameOverDialog) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(id = R.string.time_up)) },
-            text = { Text(stringResource(id = R.string.you_ran_out_of_time)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    SoundManager.playClickSound()
-                    rawBoard = generator.generate(diffEnum).cells
-                    board.value = Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }
-                    remainingTime = challengeTimeLimit
-                    isTimerRunning = true
-                    showGameOverDialog = false
-                }) {
-                    Text(stringResource(id = R.string.restart))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { SoundManager.playClickSound()
-                    navController.popBackStack() }) {
-                    Text(stringResource(id = R.string.exit))
+        Dialog(
+            onDismissRequest = {
+            }, properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0f)), // Nền mờ
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .width(320.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    tonalElevation = 8.dp,
+                    shadowElevation = 16.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = stringResource(R.string.time_up),
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = stringResource(R.string.you_ran_out_of_time),
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    SoundManager.playClickSound()
+                                    navController.popBackStack()
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(text = stringResource(id = R.string.exit))
+                            }
+
+                            Button(
+                                onClick = {
+                                    SoundManager.playClickSound()
+                                    rawBoard = generator.generate(diffEnum).cells
+                                    board.value = Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }
+                                    remainingTime = challengeTimeLimit
+                                    isTimerRunning = true
+                                    showGameOverDialog = false
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(text = stringResource(id = R.string.restart))
+                            }
+                        }
+                    }
                 }
             }
-        )
+        }
     }
+
 
     // UI Game Screen
     SudokuMobileAppTheme(darkTheme = isDarkTheme) {
@@ -216,7 +278,7 @@ fun SudokuChallengeGameScreen(
                     onCheckedChange = {
                         isDarkTheme = it
                         scope.launch {
-                            context.dataStore.edit { settings -> settings[DARK_THEME_KEY] = it }
+                            ThemePreferences.saveTheme(context, it)
                         }
                     },
                     modifier = Modifier.align(Alignment.CenterEnd)
