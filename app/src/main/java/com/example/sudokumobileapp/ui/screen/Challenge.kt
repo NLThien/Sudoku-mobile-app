@@ -147,8 +147,12 @@ fun SudokuChallengeGameScreen(
     if (showWinDialog) SudokuWinDialog(
         time = challengeTimeLimit - remainingTime,
         onRestart = {
-            rawBoard = generator.generate(diffEnum).cells
-            board.value = Array(9) { row -> Array(9) { col -> mutableStateOf(rawBoard[row][col]) } }
+            // Reset lại từng ô theo rawBoard ban đầu
+            for (r in 0..8) {
+                for (c in 0..8) {
+                    board.value[r][c].value = rawBoard[r][c]
+                }
+            }
             remainingTime = challengeTimeLimit
             isTimerRunning = true
             showWinDialog = false
