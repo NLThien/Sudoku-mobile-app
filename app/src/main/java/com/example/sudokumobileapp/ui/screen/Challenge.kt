@@ -317,8 +317,11 @@ fun SudokuChallengeGameScreen(
                                 if (cell.value != 0) {
                                     Text(
                                         text = cell.value.toString(),
-                                        color = if (solution[row][col] == 0) Color.Black
-                                        else if (isCorrect) Color.Black else Color.Red,
+                                        color = when {
+                                            solution[row][col] == 0 -> if (isDarkTheme) Color.White else Color.Black
+                                            isCorrect -> if (isDarkTheme) Color.White else Color.Black
+                                            else -> Color.Red
+                                        },
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold
                                     )
