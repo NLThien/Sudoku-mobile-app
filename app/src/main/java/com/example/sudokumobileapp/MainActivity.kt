@@ -252,6 +252,7 @@ fun DifficultyDialog(
                         difficulty = difficulty,
                         isSelected = false,
                         onClick = {
+                            SoundManager.playClickSound()
                             onDifficultySelected(difficulty)
                         }
                     )
