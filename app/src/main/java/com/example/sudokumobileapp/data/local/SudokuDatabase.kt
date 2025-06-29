@@ -8,6 +8,8 @@ import com.example.sudokumobileapp.data.local.dao.SudokuGameDao
 import android.content.Context
 import androidx.room.TypeConverters
 import com.example.sudokumobileapp.data.local.converters.SudokuConverters
+import com.example.sudokumobileapp.data.local.dao.GameRecordDao
+import com.example.sudokumobileapp.data.local.entity.GameRecord
 
 @Database(
     entities = [SudokuGameEntity::class],
@@ -38,4 +40,8 @@ abstract class SudokuDatabase : RoomDatabase() {
                     .build()
         }
     }
+}
+@Database(entities = [GameRecord::class], version = 1)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun gameRecordDao(): GameRecordDao
 }

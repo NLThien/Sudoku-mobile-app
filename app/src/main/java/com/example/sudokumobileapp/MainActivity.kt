@@ -34,6 +34,12 @@ import com.example.sudokumobileapp.ui.screen.SudokuGameScreen
 import com.example.sudokumobileapp.ui.theme.SudokuMobileAppTheme
 import com.example.sudokumobileapp.ui.screen.SudokuChallengeGameScreen
 import com.example.sudokumobileapp.data.repository.SoundManager
+import com.example.sudokumobileapp.ui.screens.setting.SettingsScreen
+import com.example.sudokumobileapp.ui.screens.game.components.AchievementsScreen
+import com.example.sudokumobileapp.domain.model.Difficulty
+import androidx.navigation.NavType
+import android.R.attr.type
+import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +60,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
 @Composable
 fun SudokuApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
@@ -68,7 +73,11 @@ fun SudokuApp(modifier: Modifier = Modifier) {
             HomeScreen(navController = navController, modifier = modifier)
         }
 
-        composable("sudokuScreen/{mode}/{level}") { backStackEntry ->
+        composable(
+            "sudokuScreen/{mode}/{level}",
+            arguments = listOf(navArgument("level") { type = NavType.StringType })
+            ) { backStackEntry ->
+            val savedStateHandle = backStackEntry.savedStateHandle
             val mode = backStackEntry.arguments?.getString("mode") ?: "free"
             val level = backStackEntry.arguments?.getString("level") ?: stringResource(R.string.difficulty_easy)
 
@@ -100,6 +109,14 @@ fun SudokuApp(modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        composable("settings") {
+            SettingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable("achievements") {
+            AchievementsScreen(onBack = { navController.popBackStack() })
+        }
     }
 }
 
@@ -109,44 +126,75 @@ fun HomeScreen(modifier: Modifier, navController: NavController) {
     var showDifficultyDialog by remember { mutableStateOf(false) }
     var currentMode by remember { mutableStateOf("free") }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xA403A9F4)),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = stringResource(id = R.string.app_name),
-            style = MaterialTheme.typography.displayMedium.copy(
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            ),
-            modifier = Modifier.padding(bottom = 48.dp)
-        )
+    Box(
+        modifier = modifier.fillMaxSize()
+    ){
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(Color(0xA403A9F4)),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = stringResource(id = R.string.app_name),
+                style = MaterialTheme.typography.displayMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                ),
+                modifier = Modifier.padding(bottom = 48.dp)
+            )
 
-        GameModeButton(
-            icon = Icons.Default.PlayArrow,
-            text = stringResource(R.string.casual),
-            description = stringResource(R.string.game_mode_free_desc),
+            GameModeButton(
+                icon = Icons.Default.PlayArrow,
+                text = stringResource(R.string.casual),
+                description = stringResource(R.string.game_mode_free_desc),
+                onClick = {
+                    SoundManager.playClickSound()
+                    currentMode = "free"
+                    showDifficultyDialog = true
+                },
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+
+            GameModeButton(
+                icon = Icons.Default.Timer,
+                text = stringResource(R.string.challenge),
+                description = stringResource(R.string.game_mode_challenge_desc),
+                onClick = {
+                    SoundManager.playClickSound()
+                    currentMode = "challenge"
+                    showDifficultyDialog = true
+                },
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+
+            // Thêm nút xem thành tích
+            GameModeButton(
+                icon = Icons.Default.Leaderboard,
+                text = "Thành Tích",
+                description = "Xem danh sách thành tích",
+                onClick = {
+                    navController.navigate("achievements")
+                },
+            )
+        }
+
+        IconButton(
             onClick = {
-                SoundManager.playClickSound()
-                currentMode = "free"
-                showDifficultyDialog = true
+                navController.navigate("settings")
             },
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
+            modifier = Modifier
+                .align(alignment = Alignment.TopEnd)
+                .padding(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Settings",
+                tint = Color.White
+            )
+        }
 
-        GameModeButton(
-            icon = Icons.Default.Timer,
-            text = stringResource(R.string.challenge),
-            description = stringResource(R.string.game_mode_challenge_desc),
-            onClick = {
-                SoundManager.playClickSound()
-                currentMode = "challenge"
-                showDifficultyDialog = true
-            }
-        )
     }
 
     AnimatedVisibility(
@@ -309,36 +357,6 @@ fun DifficultyItem(
 
 fun navigateToGame(navController: NavController, mode: String, difficulty: Difficulty) {
     navController.navigate("sudokuScreen/$mode/${difficulty.displayName}")
-}
-
-enum class Difficulty(
-    val displayName: String,
-    val description: String,
-    val icon: ImageVector,
-    val color: Color,
-    val emptyCells: Int
-) {
-    EASY(
-        "Dễ",
-        "Cho người mới bắt đầu",
-        Icons.Default.SentimentVerySatisfied,
-        Color(0xFF4CAF50),
-        30
-    ),
-    MEDIUM(
-        "Trung bình",
-        "Thử thách vừa phải",
-        Icons.Default.SentimentNeutral,
-        Color(0xFF2196F3),
-        45
-    ),
-    HARD(
-        "Khó",
-        "Dành cho cao thủ",
-        Icons.Default.SentimentVeryDissatisfied,
-        Color(0xFFF44336),
-        60
-    )
 }
 
 @Preview(showBackground = true, showSystemUi = true)

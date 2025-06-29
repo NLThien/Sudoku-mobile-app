@@ -285,6 +285,8 @@ fun PauseMenuButton(
 @Composable
 fun SudokuWinDialog(
     time: Long,
+    errorCount: Int,
+    hintCount: Int,
     onRestart: () -> Unit,
     onExit: () -> Unit,
     modifier: Modifier = Modifier
@@ -330,9 +332,23 @@ fun SudokuWinDialog(
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
-
+                // thời gian hoàn thành
                 Text(
                     text = "${stringResource(R.string.time_up)} ${formatTime(time)}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                //số lỗi
+                Text(
+                    text = "Số lỗi: ${errorCount}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                // số gợi ý
+                Text(
+                    text = "Số gợi ý: ${hintCount}",
                     style = MaterialTheme.typography.bodyLarge
                 )
 

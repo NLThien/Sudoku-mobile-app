@@ -1,5 +1,12 @@
 package com.example.sudokumobileapp.domain.model
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SentimentNeutral
+import androidx.compose.material.icons.filled.SentimentVeryDissatisfied
+import androidx.compose.material.icons.filled.SentimentVerySatisfied
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+
 data class SudokuBoard(
     val cells: Array<IntArray>, // Lưới 9x9 (0 = ô trống)
     val difficulty: Difficulty, // Easy/Medium/Hard
@@ -13,8 +20,32 @@ data class SudokuBoard(
     }
 }
 
-enum class Difficulty(val emptyCells: Int) {
-    EASY(40),   // giữ 41 ô ( tổng 81 ô tất cả)
-    MEDIUM(50), // giữ lại 31 ô
-    HARD(60)    // giữ lại 21 ô
+enum class Difficulty(
+    val displayName: String,
+    val description: String,
+    val icon: ImageVector,
+    val color: Color,
+    val emptyCells: Int
+) {
+    EASY(
+        "Dễ",
+        "Cho người mới bắt đầu",
+        Icons.Default.SentimentVerySatisfied,
+        Color(0xFF4CAF50),
+        30
+    ),
+    MEDIUM(
+        "Trung bình",
+        "Thử thách vừa phải",
+        Icons.Default.SentimentNeutral,
+        Color(0xFF2196F3),
+        45
+    ),
+    HARD(
+        "Khó",
+        "Dành cho cao thủ",
+        Icons.Default.SentimentVeryDissatisfied,
+        Color(0xFFF44336),
+        60
+    )
 }

@@ -11,10 +11,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import com.example.sudokumobileapp.data.mapper.SudokuMapper
+import com.example.sudokumobileapp.data.local.dao.GameRecordDao
+import com.example.sudokumobileapp.data.local.entity.GameRecord
 
 class GameRepositoryImpl @Inject constructor(
     private val database: SudokuDatabase,    // lúc này chưa tạo
-    private val mapper: SudokuMapper // Thêm mapper
+    private val mapper: SudokuMapper, // Thêm mapper
+    private val gameRecordDao: GameRecordDao
 ) : GameRepository {
 
     private val gameDao = database.gameDao()
@@ -45,6 +48,18 @@ class GameRepositoryImpl @Inject constructor(
 
     override suspend fun validateBoard(board: SudokuBoard): Boolean {
         return isBoardValid(board.cells)
+    }
+
+    override fun getGameRecords(): Flow<List<GameRecord>> {
+        return gameRecordDao.getAllRecords()  // DAO đã trả về Flow
+    }
+
+    override suspend fun clearAllRecords() {
+        gameRecordDao.deleteAll()
+    }
+
+    override suspend fun saveGameRecord(record: GameRecord) {
+        gameRecordDao.insert(record)
     }
 
     // Các phương thức hỗ trợ

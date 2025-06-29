@@ -34,7 +34,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import com.example.sudokumobileapp.data.repository.SoundManager
 import com.example.sudokumobileapp.data.repository.ThemePreferences
-
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import kotlinx.serialization.json.Json
+import androidx.lifecycle.SavedStateHandle
 // Tạo DataStore để lưu chế độ theme
 //private val Context.dataStore by preferencesDataStore("settings")
 //private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
@@ -54,6 +57,8 @@ private fun isEditableCell(
 ): Boolean {
     return initialBoard[row][col].value == 0
 }
+
+private const val MAX_ERRORS = 10   // sai quá 10 lỗi là cook
 
 // Composable màn hình chơi Sudoku
 @Composable
@@ -87,6 +92,13 @@ fun SudokuGameScreen(
         "Khó" -> Difficulty.HARD
         else -> Difficulty.EASY
     }
+    // Thêm state cho chức năng đếm lỗi
+    var errorCount by remember { mutableStateOf(0) }
+    var hintCount by remember { mutableStateOf(0) }
+    val maxHints = 10 // Giới hạn số lần gợi ý, hiện test nên không giới hạn
+
+    // Thêm state cho trạng thái thua
+    var showLoseDialog by remember { mutableStateOf(false) }
 
     // Tạo bảng game và lời giải
     var rawBoard = remember(diffEnum) { generator.generate(diffEnum).cells }
@@ -114,6 +126,13 @@ fun SudokuGameScreen(
             elapsedTime++
         }
     }
+    // Xử lý khi sai quá nhiều
+    LaunchedEffect(errorCount) {
+        if (errorCount >= MAX_ERRORS) { // sai quá lỗi MAX_ERRORS là cook
+            isTimerRunning = false
+            showLoseDialog = true
+        }
+    }
 
     // Lắng nghe lifecycle để tạm dừng timer
     DisposableEffect(lifecycleOwner) {
@@ -122,6 +141,19 @@ fun SudokuGameScreen(
             onResume = { isTimerRunning = true })
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    fun resetGame() {
+        for (r in 0..8) {
+            for (c in 0..8) {
+                board.value[r][c].value = rawBoard[r][c]
+            }
+        }
+        elapsedTime = 0L
+        errorCount = 0 // Reset lỗi về 0
+        hintCount = 0
+        isTimerRunning = true
+        selectedCell = null
     }
 
     // Hiển thị các hộp thoại
@@ -141,6 +173,9 @@ fun SudokuGameScreen(
             }
             elapsedTime = 0L
             isTimerRunning = true
+            showPausedDialog = false
+            hintCount = 0
+            errorCount = 0
         },
         onExit = { navController.popBackStack() }
     )
@@ -157,9 +192,37 @@ fun SudokuGameScreen(
             elapsedTime = 0L
             isTimerRunning = true
             showWinDialog = false
+            hintCount = 0
+            errorCount = 0
         },
-        onExit = { navController.popBackStack() }
+        onExit = {
+            navController.popBackStack()
+        },
+        errorCount = TODO(),
+        hintCount = TODO(),
+        modifier = TODO()
     )
+
+    if (showLoseDialog) {
+        AlertDialog(
+            onDismissRequest = { showLoseDialog = false },
+            title = { Text("Rất tiếc!") },
+            text = { Text("Bạn đã mắc quá $MAX_ERRORS lỗi. Game over!") },
+            confirmButton = {
+                Button(onClick = {
+                    resetGame()
+                    showLoseDialog = false
+                }) {
+                    Text("Chơi lại")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { navController.popBackStack() }) {
+                    Text("Thoát")
+                }
+            }
+        )
+    }
 
     // Theme toàn màn
     SudokuMobileAppTheme(darkTheme = isDarkTheme) {
@@ -190,20 +253,23 @@ fun SudokuGameScreen(
                     ), modifier = Modifier.align(Alignment.TopStart)
                 )
 
-                Switch(
-                    checked = isDarkTheme,
-                    onCheckedChange = {
-                        isDarkTheme = it
-                        scope.launch {
-                            ThemePreferences.saveTheme(context, it)
-                        }
-                    },
+                // Nút vào cài đặt
+                IconButton(
+                    onClick = {
+//                        navController.navigate("settings")
+                              },
                     modifier = Modifier.align(Alignment.CenterEnd)
-                )
+                ) {
+                    Icon(
+                        Icons.Default.Settings,
+                        "Settings",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
 
             // Nút chọn độ khó
-            Button(onClick = {}, modifier = Modifier.padding(bottom = 16.dp)) {
+            Button(onClick = {}, modifier = Modifier.padding(bottom = 10.dp)) {
                 Text("Độ khó: $level")
             }
 
@@ -221,21 +287,47 @@ fun SudokuGameScreen(
 
                 Button(
                     onClick = {
-                        selectedCell?.let { (r, c) ->
-                            if (board.value[r][c].value == 0) {
-                                board.value[r][c].value = solution[r][c]
-                                if (validator.isBoardValid(board.value.map { row ->
-                                        row.map { it.value }.toIntArray()
-                                    }.toTypedArray())) {
-                                    isTimerRunning = false
-                                    showWinDialog = true
+                        if(hintCount < maxHints){
+                            selectedCell?.let { (r, c) ->
+                                if (board.value[r][c].value == 0) {
+                                    board.value[r][c].value = solution[r][c]
+                                    hintCount++
+
+                                    //kiểm tra thắng
+                                    if (validator.isBoardValid(board.value.map { row ->
+                                            row.map { it.value }.toIntArray()
+                                        }.toTypedArray())) {
+                                        isTimerRunning = false
+                                        showWinDialog = true
+                                    }
                                 }
                             }
                         }
                     },
-                    enabled = selectedCell?.let { board.value[it.first][it.second].value == 0 } == true,
+                    enabled = selectedCell?.let { board.value[it.first][it.second].value == 0 } == true && hintCount < maxHints,
                     modifier = Modifier.width(120.dp)
-                ) { Text("Gợi ý") }
+                ) { Text("Gợi ý[${maxHints - hintCount}]") } // Hiển thị số lần gợi ý còn lại
+            }
+
+            // Thêm thông tin đếm lỗi và gợi ý vào header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Lỗi: $errorCount/$MAX_ERRORS",
+                    color = when {
+                        errorCount >= MAX_ERRORS -> Color.Red
+                        errorCount >= MAX_ERRORS * 0.7 -> Color.Magenta
+                        else -> MaterialTheme.colorScheme.onBackground
+                    },
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Gợi ý: ${hintCount}",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             // Bảng Sudoku
@@ -252,6 +344,8 @@ fun SudokuGameScreen(
                             val isSelected =
                                 selectedCell?.let { it.first == row && it.second == col } ?: false
                             val isCorrect = solution[row][col] == cell.value
+                            val isInitialCell = !isEditableCell(initialBoard, row, col) // Kiểm tra ô ban đầu
+                            // sửa để phân biệt rõ ràng hơn về ô ban đầu, ô nhập và ô sai
                             val cellColor = when {
                                 isSelected -> if (isDarkTheme) Color.DarkGray else Color.LightGray
                                 (row / 3 + col / 3) % 2 == 0 -> if (isDarkTheme) Color(0xFF2C2C2C) else Color(
@@ -276,9 +370,17 @@ fun SudokuGameScreen(
                                     Text(
                                         text = cell.value.toString(),
                                         color = when {
-                                            solution[row][col] == 0 -> if (isDarkTheme) Color.White else Color.Black
-                                            isCorrect -> if (isDarkTheme) Color.White else Color.Black
-                                            else -> Color.Red
+                                            // Số ban đầu
+                                            // Số ban đầu
+                                            isInitialCell -> if (isDarkTheme) Color.White else Color.Black
+                                            // Số sai
+                                            !isCorrect -> Color.Red
+                                            // Số đúng do người chơi nhập
+                                            else -> if (isDarkTheme) Color.White else Color.Black
+
+//                                            solution[row][col] == 0 -> if (isDarkTheme) Color.White else Color.Black
+//                                            isCorrect -> if (isDarkTheme) Color.White else Color.Black
+//                                            else -> Color.Red
                                         },
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold
@@ -310,12 +412,21 @@ fun SudokuGameScreen(
                                         SoundManager.playNumberInputSound()
                                         selectedCell?.let { (row, col) ->
                                             if (isEditableCell(initialBoard, row, col)) {
-                                                board.value[row][col].value = number
-                                                if (validator.isBoardValid(board.value.map { row ->
-                                                        row.map { it.value }.toIntArray()
-                                                    }.toTypedArray())) {
-                                                    isTimerRunning = false
-                                                    showWinDialog = true
+                                                // CHỈ cho phép nhập khi ô trống (0)
+                                                if (board.value[row][col].value == 0) {
+                                                    board.value[row][col].value = number
+
+                                                    // Kiểm tra đúng/sai
+                                                    if (number != solution[row][col]) {
+                                                        errorCount++
+                                                    } else {
+                                                        if (validator.isBoardValid(board.value.map { row ->
+                                                                row.map { it.value }.toIntArray()
+                                                            }.toTypedArray())) {
+                                                            isTimerRunning = false
+                                                            showWinDialog = true
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -336,8 +447,9 @@ fun SudokuGameScreen(
                 // Nút xóa
                 Button(onClick = {
                     selectedCell?.let { (row, col) ->
-                        if (isEditableCell(initialBoard, row, col)) {
+                        if (isEditableCell(initialBoard, row, col) && board.value[row][col].value != 0) {   // tính lỗi khi xóa ô đã nhập
                             board.value[row][col].value = 0
+                            errorCount++ // thêm một lỗi nếu xóa ô đã nhập hẹ hẹ
                         }
                     }
                 }, modifier = Modifier.width(100.dp)) {

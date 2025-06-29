@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,6 +41,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import com.example.sudokumobileapp.data.repository.ThemePreferences
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.SaverScope
 
 //// DataStore
 //private val Context.dataStore by preferencesDataStore("settings")
@@ -58,6 +63,8 @@ fun countDownTime(seconds: Long): String {
 private fun isEditableCell(initialBoard: Array<Array<MutableState<Int>>>, row: Int, col: Int): Boolean {
     return initialBoard[row][col].value == 0
 }
+
+private const val MAX_ERRORS = 10   // sai quá 10 lỗi là cook
 
 @Composable
 fun SudokuChallengeGameScreen(
@@ -87,6 +94,8 @@ fun SudokuChallengeGameScreen(
         stringResource(R.string.difficulty_hard) -> Difficulty.HARD
         else -> Difficulty.EASY
     }
+
+    var errorCount by remember { mutableStateOf(0) }
 
     val challengeTimeLimit = when (diffEnum) {
         Difficulty.EASY -> 180L
@@ -128,6 +137,14 @@ fun SudokuChallengeGameScreen(
         }
     }
 
+    // Xử lý khi sai quá nhiều
+    LaunchedEffect(errorCount) {
+        if (errorCount >= MAX_ERRORS) { // sai quá lỗi MAX_ERRORS là cook
+            isTimerRunning = false
+            showGameOverDialog = true
+        }
+    }
+
     // Observe Lifecycle (pause/resume)
     DisposableEffect(lifecycleOwner) {
         val observer = TimerLifecycleObserver(
@@ -156,8 +173,12 @@ fun SudokuChallengeGameScreen(
             remainingTime = challengeTimeLimit
             isTimerRunning = true
             showWinDialog = false
+            errorCount = 0
         },
-        onExit = { navController.popBackStack() }
+        onExit = { navController.popBackStack() },
+        errorCount = TODO(),
+        hintCount = TODO(),
+        modifier = TODO()
     )
 
     if (showGameOverDialog) {
@@ -172,7 +193,7 @@ fun SudokuChallengeGameScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0f)), // Nền mờ
+                    .background(Color.Black.copy(alpha = 0.9f)), // Nền mờ
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
@@ -276,22 +297,51 @@ fun SudokuChallengeGameScreen(
                     ),
                     modifier = Modifier.align(Alignment.TopStart)
                 )
-
-                Switch(
-                    checked = isDarkTheme,
-                    onCheckedChange = {
-                        isDarkTheme = it
-                        scope.launch {
-                            ThemePreferences.saveTheme(context, it)
-                        }
-                    },
+                // Nút vào cài đặt
+                IconButton(
+                    onClick = {
+//                        navController.navigate("settings")
+                              },
                     modifier = Modifier.align(Alignment.CenterEnd)
-                )
+                ) {
+                    Icon(
+                        Icons.Default.Settings,
+                        "Settings",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+//                Switch(
+//                    checked = isDarkTheme,
+//                    onCheckedChange = {
+//                        isDarkTheme = it
+//                        scope.launch {
+//                            ThemePreferences.saveTheme(context, it)
+//                        }
+//                    },
+//                    modifier = Modifier.align(Alignment.CenterEnd)
+//                )
             }
 
             // Difficulty Display
             Button(onClick = {}, modifier = Modifier.padding(bottom = 16.dp)) {
                 Text("${stringResource(R.string.difficulty)}: $level")
+            }
+
+            // Thêm thông tin đếm lỗi và gợi ý vào header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Lỗi: $errorCount/$MAX_ERRORS",
+                    color = when {
+                        errorCount >= MAX_ERRORS -> Color.Red
+                        errorCount >= MAX_ERRORS * 0.7 -> Color.Yellow
+                        else -> MaterialTheme.colorScheme.onBackground
+                    },
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             // Sudoku Grid
@@ -355,12 +405,20 @@ fun SudokuChallengeGameScreen(
                                     .clickable {
                                         selectedCell?.let { (row, col) ->
                                             if (isEditableCell(initialBoard, row, col)) {
-                                                board.value[row][col].value = number
-                                                if (validator.isBoardValid(board.value.map { row ->
-                                                        row.map { it.value }.toIntArray()
-                                                    }.toTypedArray())) {
-                                                    isTimerRunning = false
-                                                    showWinDialog = true
+                                                if (board.value[row][col].value == 0) {
+                                                    board.value[row][col].value = number
+
+                                                    // Kiểm tra đúng/sai
+                                                    if (number != solution[row][col]) {
+                                                        errorCount++
+                                                    } else {
+                                                        if (validator.isBoardValid(board.value.map { row ->
+                                                                row.map { it.value }.toIntArray()
+                                                            }.toTypedArray())) {
+                                                            isTimerRunning = false
+                                                            showWinDialog = true
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -382,8 +440,9 @@ fun SudokuChallengeGameScreen(
                     onClick = {
                         SoundManager.playClickSound()
                         selectedCell?.let { (row, col) ->
-                            if (isEditableCell(initialBoard, row, col)) {
+                            if (isEditableCell(initialBoard, row, col) && board.value[row][col].value != 0) {
                                 board.value[row][col].value = 0
+                                errorCount++
                             }
                         }
                     },
