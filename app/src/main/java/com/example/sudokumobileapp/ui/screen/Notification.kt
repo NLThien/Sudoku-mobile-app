@@ -48,7 +48,7 @@ fun NotificationExit(
         label = "dialog_animation"
     )
 
-    LaunchedEffect(Unit) { animationPlayed = true }
+    LaunchedEffect(Unit) { animationPlayed = false }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -107,11 +107,11 @@ fun NotificationExit(
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.width(130.dp).height(40.dp),
                         border = BorderStroke(1.dp, Color.White),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -123,7 +123,7 @@ fun NotificationExit(
 
                     Button(
                         onClick = onConfirm,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.width(130.dp).height(40.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFFF5252),
                             contentColor = Color.White
